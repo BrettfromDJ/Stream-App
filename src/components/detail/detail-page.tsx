@@ -1,0 +1,238 @@
+import { notFound } from "next/navigation";
+import Image from "next/image";
+import { getMediaDetail, ProviderError } from "@/lib/providers";
+import { getLibraryIndex, getLibraryItem } from "@/lib/library/queries";
+import { cardFromItem, cardFromResult, type CardData } from "@/lib/media/card";
+import { yearFrom } from "@/lib/media/format";
+import { TYPE_LABEL } from "@/lib/media/labels";
+import type { LibraryItem, MediaDetail, MediaType } from "@/lib/media/types";
+import { Artwork } from "@/components/media/artwork";
+import { MediaCard } from "@/components/media/media-card";
+import { Row, ROW_SIZES } from "@/components/media/row";
+import { LibraryPanel } from "@/components/library/library-panel";
+import { BackButton } from "./back-button";
+import { ExpandableText } from "./expandable-text";
+import { cn } from "@/lib/utils";
+
+const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Open Library", game: "RAWG" };
+
+type Loaded = { detail: MediaDetail; degraded: boolean };
+
+async function load(type: MediaType, id: string, item: LibraryItem | null): Promise<Loaded | null> {
+  try {
+    return { detail: await getMediaDetail(type, id), degraded: false };
+  } catch (err) {
+    if (err instanceof ProviderError && err.kind === "not_found" && !item) notFound();
+    // Provider down / not configured: fall back to what we saved.
+    if (item) return { detail: detailFromItem(item), degraded: true };
+    if (!(err instanceof ProviderError)) console.error("[detail]", err);
+    return null;
+  }
+}
+
+function detailFromItem(item: LibraryItem): MediaDetail {
+  const year = yearFrom(item.releaseDate);
+  const genres = Array.isArray(item.metadata.genres) ? (item.metadata.genres as string[]) : [];
+  return {
+    type: item.mediaType,
+    externalId: item.externalId,
+    title: item.title,
+    subtitle: item.subtitle,
+    year,
+    releaseDate: item.releaseDate,
+    artworkUrl: item.artworkUrl,
+    backdropUrl: item.backdropUrl,
+    description: null,
+    genres,
+    highlights: year ? [String(year)] : [],
+    facts: [],
+  };
+}
+
+export async function DetailPage({ type, id }: { type: MediaType; id: string }) {
+  const item = await getLibraryItem(type, id);
+  const [loaded, index] = await Promise.all([load(type, id, item), getLibraryIndex()]);
+
+  if (!loaded) return <Unavailable type={type} />;
+  const { detail, degraded } = loaded;
+
+  const card: CardData = item
+    ? { ...cardFromItem(item), metadata: detail.metadata ?? item.metadata }
+    : cardFromResult(detail, index);
+  // Keep the snapshot fresh with the richer detail data when adding.
+  if (!item) {
+    card.subtitle = detail.subtitle;
+    card.backdropUrl = detail.backdropUrl;
+    card.artworkUrl = detail.artworkUrl;
+  }
+
+  const hero = detail.backdropUrl ?? null;
+  const hasHero = Boolean(hero || detail.artworkUrl);
+  const isGame = type === "game";
+
+  return (
+    <article className="relative animate-fade-in">
+      {/* Hero */}
+      <div
+        className={cn(
+          "relative w-full overflow-hidden",
+          hasHero ? "h-[min(62vh,560px)] md:h-[min(70vh,640px)]" : "h-[calc(env(safe-area-inset-top)+4.5rem)] lg:h-24",
+        )}
+      >
+        {hero ? (
+          <Image src={hero} alt="" fill priority sizes="100vw" className="fade-to-bg object-cover object-top" />
+        ) : detail.artworkUrl ? (
+          <Image
+            src={detail.artworkUrl}
+            alt=""
+            fill
+            priority
+            sizes="400px"
+            className="fade-to-bg scale-125 object-cover opacity-60 blur-3xl saturate-150"
+          />
+        ) : null}
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-bg/10" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-bg/60 via-transparent to-transparent max-md:hidden" />
+        <div className="gutter absolute top-[calc(env(safe-area-inset-top)+0.75rem)] left-0 lg:top-6">
+          <BackButton />
+        </div>
+      </div>
+
+      {/* Title block */}
+      <div className={cn("gutter relative", hasHero ? "-mt-[34vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2")}>
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:gap-8">
+          <div
+            className={cn(
+              "relative w-[34vw] max-w-[150px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
+              "aspect-[2/3]",
+              isGame && hero && "hidden md:block",
+            )}
+          >
+            <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 34vw" priority />
+          </div>
+          <div className="min-w-0 md:pb-2">
+            <p className="text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">{TYPE_LABEL[type]}</p>
+            <h1 className="mt-1 text-[30px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[44px] lg:text-[52px]">
+              {detail.title}
+            </h1>
+            {detail.subtitle ? <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">{detail.subtitle}</p> : null}
+            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-fg-2 md:text-[15px]">
+              {detail.highlights.map((h, i) => (
+                <span key={h} className="inline-flex items-center gap-2">
+                  {i > 0 && <span aria-hidden className="text-fg-3">·</span>}
+                  {h}
+                </span>
+              ))}
+              {detail.score ? (
+                <span className="inline-flex items-center gap-2">
+                  {detail.highlights.length > 0 && <span aria-hidden className="text-fg-3">·</span>}
+                  <span className="rounded-md bg-white/10 px-1.5 py-px text-[12px] font-semibold text-fg">
+                    {detail.score.source === "Metacritic" ? `Metacritic ${detail.score.value}` : `${detail.score.source} ${detail.score.value}/${detail.score.max}`}
+                  </span>
+                </span>
+              ) : null}
+            </p>
+            {detail.genres.length > 0 && <p className="mt-1.5 text-[14px] text-fg-3">{detail.genres.slice(0, 4).join(" · ")}</p>}
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="gutter mt-8 grid gap-10 md:mt-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
+          {degraded && (
+            <p className="rounded-2xl bg-white/[0.05] px-4 py-3 text-[14px] text-fg-2">
+              Full details from {SOURCE[type]} aren&apos;t available right now — showing what&apos;s saved in your library.
+            </p>
+          )}
+          {detail.description ? (
+            <section>
+              <h2 className="sr-only">Overview</h2>
+              <ExpandableText text={detail.description} lines={5} />
+            </section>
+          ) : null}
+
+          {detail.facts.length > 0 && (
+            <section>
+              <h2 className="mb-3 text-[18px] font-bold tracking-[-0.02em]">Details</h2>
+              <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+                {detail.facts.map((f) => (
+                  <div key={f.label} className="min-w-0">
+                    <dt className="text-[12px] font-medium tracking-wide text-fg-3 uppercase">{f.label}</dt>
+                    <dd className="mt-0.5 text-[15px] break-words text-fg/90">{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+        </div>
+
+        <aside className="order-1 lg:order-2">
+          <div className="lg:sticky lg:top-8">
+            <LibraryPanel media={card} review={item?.review ?? null} reviewedAt={item?.reviewedAt ?? null} />
+          </div>
+        </aside>
+      </div>
+
+      <div className="mt-12 flex flex-col gap-10 md:gap-12">
+        {detail.cast && detail.cast.length > 0 && (
+          <section aria-label="Cast">
+            <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Cast</h2>
+            <div className="no-scrollbar gutter flex gap-4 overflow-x-auto pb-1">
+              {detail.cast.map((p) => (
+                <div key={`${p.name}-${p.role}`} className="w-[84px] shrink-0 text-center md:w-[96px]">
+                  <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-full bg-elevated-2">
+                    {p.imageUrl ? (
+                      <Image src={p.imageUrl} alt={p.name} fill sizes="96px" className="object-cover" />
+                    ) : (
+                      <span className="grid size-full place-items-center text-[22px] font-semibold text-fg-3">{p.name.charAt(0)}</span>
+                    )}
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-[12.5px] leading-tight font-medium">{p.name}</p>
+                  {p.role && <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-tight text-fg-3">{p.role}</p>}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {detail.screenshots && detail.screenshots.length > 0 && (
+          <section aria-label="Screenshots">
+            <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Screenshots</h2>
+            <div className="no-scrollbar gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+              {detail.screenshots.map((src, i) => (
+                <div key={src} className="relative aspect-video w-[78vw] shrink-0 snap-start overflow-hidden rounded-[14px] bg-elevated-2 md:w-[420px]">
+                  <Image src={src} alt={`Screenshot ${i + 1}`} fill sizes="(min-width: 768px) 420px, 78vw" className="object-cover" />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {detail.related && detail.related.length > 0 && (
+          <Row title={type === "game" ? "In the Same Series" : "You Might Also Like"}>
+            {detail.related.map((r) => (
+              <MediaCard key={r.externalId} media={cardFromResult(r, index)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
+            ))}
+          </Row>
+        )}
+
+        <p className="gutter text-[12px] text-fg-3">Data from {SOURCE[type]}.</p>
+      </div>
+    </article>
+  );
+}
+
+function Unavailable({ type }: { type: MediaType }) {
+  return (
+    <div className="gutter pt-[calc(env(safe-area-inset-top)+1rem)] lg:pt-8">
+      <BackButton />
+      <div className="py-20 md:text-center">
+        <p className="text-[22px] font-bold tracking-[-0.02em]">This title isn&apos;t available right now.</p>
+        <p className="mt-1.5 text-[15px] text-fg-2">
+          {SOURCE[type]} didn&apos;t respond. Try again in a moment.
+        </p>
+      </div>
+    </div>
+  );
+}

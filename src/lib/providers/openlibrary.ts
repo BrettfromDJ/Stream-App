@@ -1,0 +1,188 @@
+import "server-only";
+import type { MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
+import { cleanDescription, normalizeDate, yearFrom } from "@/lib/media/format";
+import { ProviderError, fetchJson, safely } from "./http";
+
+/**
+ * Open Library adapter — books. No API key required.
+ * Open Library asks clients to send an identifying User-Agent.
+ */
+
+const API = "https://openlibrary.org";
+const USER_AGENT = `Shelf/1.0 (personal media tracker${process.env.OPENLIBRARY_CONTACT ? `; ${process.env.OPENLIBRARY_CONTACT}` : ""})`;
+const headers = { "User-Agent": USER_AGENT };
+
+export const coverUrl = (coverId?: number | null) =>
+  coverId && coverId > 0 ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : null;
+
+interface OlSearchDoc {
+  key: string; // "/works/OL45804W"
+  title: string;
+  subtitle?: string;
+  author_name?: string[];
+  first_publish_year?: number;
+  cover_i?: number;
+  number_of_pages_median?: number;
+  isbn?: string[];
+  subject?: string[];
+}
+
+interface OlWork {
+  key: string;
+  title: string;
+  subtitle?: string;
+  description?: string | { value: string };
+  covers?: number[];
+  subjects?: string[];
+  first_publish_date?: string;
+  authors?: { author?: { key: string } }[];
+}
+
+interface OlEdition {
+  number_of_pages?: number;
+  isbn_13?: string[];
+  isbn_10?: string[];
+  publish_date?: string;
+  publishers?: string[];
+  covers?: number[];
+  languages?: { key: string }[];
+}
+
+const workId = (key: string) => key.replace(/^\/works\//, "");
+
+function cleanSubjects(subjects: string[] | undefined, max = 4) {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of subjects ?? []) {
+    const s = raw.replace(/\s*\(.*?\)\s*/g, "").trim();
+    if (!s || s.length > 28 || /[=:/]|fiction, |nyt:|accessible|protected|lending|in library|open_syllabus/i.test(s)) continue;
+    const label = s.charAt(0).toUpperCase() + s.slice(1);
+    const k = label.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(label);
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+function normalizeDoc(doc: OlSearchDoc): MediaSearchResult {
+  const year = doc.first_publish_year ?? null;
+  return {
+    externalId: workId(doc.key),
+    type: "book",
+    title: doc.title,
+    subtitle: doc.author_name?.slice(0, 2).join(", ") ?? null,
+    year,
+    releaseDate: year ? `${year}-01-01` : null,
+    artworkUrl: coverUrl(doc.cover_i),
+    backdropUrl: null,
+    description: null,
+    metadata: {
+      authors: doc.author_name?.slice(0, 3) ?? [],
+      pages: doc.number_of_pages_median ?? null,
+    },
+  };
+}
+
+const SEARCH_FIELDS = "key,title,subtitle,author_name,first_publish_year,cover_i,number_of_pages_median";
+
+export async function searchBooks(query: string, limit = 20): Promise<MediaSearchResult[]> {
+  const params = new URLSearchParams({ q: query, limit: String(limit), fields: SEARCH_FIELDS });
+  const data = await fetchJson<{ docs: OlSearchDoc[] }>(`${API}/search.json?${params}`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 6,
+    headers,
+    timeoutMs: 9000,
+  });
+  // Covers make the UI; keep relevance order but float cover-less works to the end.
+  const results = data.docs.map(normalizeDoc);
+  return [...results.filter((r) => r.artworkUrl), ...results.filter((r) => !r.artworkUrl)];
+}
+
+export async function trendingBooks(): Promise<MediaSearchResult[]> {
+  const data = await fetchJson<{ works: OlSearchDoc[] }>(`${API}/trending/weekly.json?limit=30`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 12,
+    headers,
+    timeoutMs: 10000,
+  });
+  return data.works.filter((w) => w.cover_i).map(normalizeDoc).slice(0, 20);
+}
+
+export async function getBook(id: string): Promise<MediaDetail> {
+  if (!/^OL\d+W$/i.test(id)) throw new ProviderError("openlibrary", "not_found");
+  const opts = { provider: "openlibrary" as const, revalidate: 60 * 60 * 24, headers, timeoutMs: 9000 };
+
+  const [work, editions, ratings] = await Promise.all([
+    fetchJson<OlWork>(`${API}/works/${id}.json`, opts),
+    safely(() => fetchJson<{ entries: OlEdition[] }>(`${API}/works/${id}/editions.json?limit=40`, opts), { entries: [] }),
+    safely(
+      () => fetchJson<{ summary?: { average?: number; count?: number } }>(`${API}/works/${id}/ratings.json`, opts),
+      {},
+    ),
+  ]);
+
+  const authors = (
+    await Promise.all(
+      (work.authors ?? [])
+        .map((a) => a.author?.key)
+        .filter((k): k is string => Boolean(k))
+        .slice(0, 3)
+        .map((key) => safely(() => fetchJson<{ name?: string }>(`${API}${key}.json`, opts), {})),
+    )
+  )
+    .map((a) => a.name)
+    .filter((n): n is string => Boolean(n));
+
+  // Prefer an English edition that has both page count and ISBN.
+  const entries = editions.entries ?? [];
+  const isEnglish = (e: OlEdition) => !e.languages || e.languages.some((l) => l.key === "/languages/eng");
+  const best =
+    entries.find((e) => isEnglish(e) && e.number_of_pages && (e.isbn_13?.length || e.isbn_10?.length)) ??
+    entries.find((e) => e.number_of_pages) ??
+    entries[0];
+  const pages = best?.number_of_pages ?? null;
+  const isbn = best?.isbn_13?.[0] ?? best?.isbn_10?.[0] ?? entries.find((e) => e.isbn_13?.length)?.isbn_13?.[0] ?? null;
+
+  const firstPublished =
+    normalizeDate(work.first_publish_date) ??
+    entries
+      .map((e) => normalizeDate(e.publish_date))
+      .filter((d): d is string => Boolean(d))
+      .sort()[0] ??
+    null;
+  const year = yearFrom(firstPublished);
+  const cover = coverUrl(work.covers?.find((c) => c > 0)) ?? coverUrl(best?.covers?.find((c) => c > 0));
+  const description = cleanDescription(typeof work.description === "string" ? work.description : work.description?.value);
+  const genres = cleanSubjects(work.subjects);
+
+  const facts: MediaFact[] = [
+    ["Author", authors.join(", ")],
+    ["First published", year ? String(year) : null],
+    ["Pages", pages ? String(pages) : null],
+    ["ISBN", isbn],
+    ["Publisher", best?.publishers?.[0] ?? null],
+    ["Editions", entries.length >= 40 ? "40+" : entries.length ? String(entries.length) : null],
+  ]
+    .filter((f): f is [string, string] => Boolean(f[1]))
+    .map(([label, value]) => ({ label, value }));
+
+  const avg = ratings.summary?.average;
+  return {
+    externalId: id,
+    type: "book",
+    title: work.title,
+    subtitle: authors.length ? authors.join(", ") : null,
+    year,
+    releaseDate: firstPublished,
+    artworkUrl: cover,
+    backdropUrl: null,
+    description,
+    genres,
+    highlights: [year ? String(year) : null, pages ? `${pages} pages` : null].filter(Boolean) as string[],
+    facts,
+    score: avg && (ratings.summary?.count ?? 0) >= 5 ? { value: Math.round(avg * 10) / 10, max: 5, source: "Open Library" } : null,
+    metadata: { authors, pages, isbn, genres },
+  };
+}
