@@ -1,6 +1,6 @@
 import "server-only";
 
-export type ProviderName = "tmdb" | "openlibrary" | "igdb";
+export type ProviderName = "tmdb" | "openlibrary" | "igdb" | "hardcover";
 
 export class ProviderError extends Error {
   constructor(

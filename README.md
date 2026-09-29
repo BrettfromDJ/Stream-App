@@ -28,6 +28,7 @@ simply hidden.
 | `TMDB_API_KEY` | **server only** | themoviedb.org → Settings → API (Read Access Token or v3 key) |
 | `IGDB_CLIENT_ID` | **server only** | dev.twitch.tv/console → register an application |
 | `IGDB_CLIENT_SECRET` | **server only** | same app → "New Secret" |
+| `HARDCOVER_API_TOKEN` | **server only**, optional | hardcover.app/account/api (books fall back to Open Library without it) |
 | `OPENLIBRARY_CONTACT` | server only, optional | your email/URL for Open Library's User-Agent |
 | `NEXT_PUBLIC_SITE_URL` | server, optional | your production URL, for auth email links |
 
@@ -47,7 +48,7 @@ src/app/
   auth/callback/            Magic-link / confirmation handler
   api/search/               Server-side search endpoint (keeps API keys off the client)
 src/lib/
-  providers/                tmdb.ts · openlibrary.ts · igdb.ts → normalized MediaSearchResult / MediaDetail
+  providers/                tmdb.ts · hardcover.ts (+ openlibrary.ts fallback) · igdb.ts → normalized MediaSearchResult / MediaDetail
   library/                  queries (server), actions (server actions), selectors (pure sorting/sections/stats)
   media/                    Shared types, status labels, formatting, card mapping
   supabase/                 Server + proxy clients

@@ -3,6 +3,7 @@ import type { MediaDetail, MediaSearchResult, MediaType } from "@/lib/media/type
 import { ProviderError, safely } from "./http";
 import * as tmdb from "./tmdb";
 import * as ol from "./openlibrary";
+import * as hardcover from "./hardcover";
 import * as igdb from "./igdb";
 
 export { ProviderError };
@@ -17,7 +18,8 @@ export async function getMediaDetail(type: MediaType, id: string): Promise<Media
       if (!/^\d+$/.test(id)) throw new ProviderError("tmdb", "not_found");
       return tmdb.getTv(id);
     case "book":
-      return ol.getBook(id);
+      // Numeric IDs are Hardcover books; "OL…W" IDs are Open Library works.
+      return /^\d+$/.test(id) ? hardcover.getBook(id) : ol.getBook(id);
     case "game":
       return igdb.getGame(id);
   }
@@ -39,7 +41,7 @@ export async function searchAll(query: string, filter: SearchFilter): Promise<Gr
   const tmdbKind = filter === "movie" || filter === "tv" ? filter : "all";
   const [screen, books, games] = await Promise.allSettled([
     wants("movie") || wants("tv") ? tmdb.searchTmdb(query, tmdbKind) : Promise.resolve(empty),
-    wants("book") ? ol.searchBooks(query) : Promise.resolve(empty),
+    wants("book") ? searchBooks(query) : Promise.resolve(empty),
     wants("game") ? igdb.searchGames(query) : Promise.resolve(empty),
   ]);
 
@@ -83,11 +85,32 @@ export const discovery = {
   newGames: () => safely(igdb.newGames, []),
   popularGames: () => safely(igdb.popularGames, []),
   upcomingGames: () => safely(igdb.upcomingGames, []),
-  popularBooks: () => safely(ol.trendingBooks, []),
+  popularBooks: () => safely(popularBooks, []),
 };
 
 export const providerStatus = () => ({
   tmdb: tmdb.isTmdbConfigured(),
   igdb: igdb.isIgdbConfigured(),
   openlibrary: true,
+  hardcover: hardcover.isHardcoverConfigured(),
 });
+
+/** Books: Hardcover when configured, Open Library as the fallback. */
+async function searchBooks(query: string) {
+  if (hardcover.isHardcoverConfigured()) {
+    try {
+      return await hardcover.searchBooks(query);
+    } catch (err) {
+      console.warn("[books] Hardcover search failed, using Open Library:", (err as Error).message);
+    }
+  }
+  return ol.searchBooks(query);
+}
+
+async function popularBooks() {
+  if (hardcover.isHardcoverConfigured()) {
+    const books = await safely(hardcover.popularBooks, []);
+    if (books.length) return books;
+  }
+  return ol.trendingBooks();
+}

@@ -75,6 +75,10 @@ export default async function ProfilePage() {
         </p>
         <p>
           Book data and covers from{" "}
+          <a className="underline decoration-white/20 underline-offset-2 hover:text-fg-2" href="https://hardcover.app" target="_blank" rel="noreferrer">
+            Hardcover
+          </a>{" "}
+          and{" "}
           <a className="underline decoration-white/20 underline-offset-2 hover:text-fg-2" href="https://openlibrary.org" target="_blank" rel="noreferrer">
             Open Library
           </a>

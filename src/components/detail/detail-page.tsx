@@ -14,7 +14,8 @@ import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
 import { cn } from "@/lib/utils";
 
-const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Open Library", game: "IGDB" };
+const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Hardcover", game: "IGDB" };
+const sourceOf = (type: MediaType, id: string) => (type === "book" && !/^\d+$/.test(id) ? "Open Library" : SOURCE[type]);
 
 type Loaded = { detail: MediaDetail; degraded: boolean };
 
@@ -53,7 +54,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
   const item = await getLibraryItem(type, id);
   const [loaded, index] = await Promise.all([load(type, id, item), getLibraryIndex()]);
 
-  if (!loaded) return <Unavailable type={type} />;
+  if (!loaded) return <Unavailable type={type} id={id} />;
   const { detail, degraded } = loaded;
 
   const card: CardData = item
@@ -140,7 +141,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
           {degraded && (
             <p className="rounded-2xl bg-white/[0.05] px-4 py-3 text-[14px] text-fg-2">
-              Full details from {SOURCE[type]} aren&apos;t available right now — showing what&apos;s saved in your library.
+              Full details from {sourceOf(type, id)} aren&apos;t available right now — showing what&apos;s saved in your library.
             </p>
           )}
           {detail.description ? (
@@ -215,20 +216,20 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           </Row>
         )}
 
-        <p className="gutter text-[12px] text-fg-3">Data from {SOURCE[type]}.</p>
+        <p className="gutter text-[12px] text-fg-3">Data from {sourceOf(type, id)}.</p>
       </div>
     </article>
   );
 }
 
-function Unavailable({ type }: { type: MediaType }) {
+function Unavailable({ type, id }: { type: MediaType; id: string }) {
   return (
     <div className="gutter pt-[calc(env(safe-area-inset-top)+1rem)] lg:pt-8">
       <BackButton />
       <div className="py-20 md:text-center">
         <p className="text-[22px] font-bold tracking-[-0.02em]">This title isn&apos;t available right now.</p>
         <p className="mt-1.5 text-[15px] text-fg-2">
-          {SOURCE[type]} didn&apos;t respond. Try again in a moment.
+          {sourceOf(type, id)} didn&apos;t respond. Try again in a moment.
         </p>
       </div>
     </div>
