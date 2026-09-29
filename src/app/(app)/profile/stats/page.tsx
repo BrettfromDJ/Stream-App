@@ -24,7 +24,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="animate-fade-in">
-      <div className="gutter pt-[calc(env(safe-area-inset-top)+0.75rem)] lg:pt-8">
+      <div className="gutter pt-[calc(var(--nav-h)+0.75rem)] lg:pt-[calc(var(--nav-h)+1.5rem)]">
         <BackButton />
       </div>
 

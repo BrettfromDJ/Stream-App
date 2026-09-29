@@ -18,7 +18,7 @@ export default async function ReviewsPage() {
 
   return (
     <div className="animate-fade-in">
-      <div className="gutter pt-[calc(env(safe-area-inset-top)+0.75rem)] lg:pt-8">
+      <div className="gutter pt-[calc(var(--nav-h)+0.75rem)] lg:pt-[calc(var(--nav-h)+1.5rem)]">
         <BackButton />
         <h1 className="mt-5 text-[32px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[38px]">Reviews</h1>
         <p className="mt-1 text-[14px] text-fg-3">Your entertainment journal.</p>

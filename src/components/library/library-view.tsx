@@ -57,7 +57,7 @@ export function LibraryView({ items, error, initial }: Props) {
 
   return (
     <div>
-      <div className="sticky top-0 z-30 bg-bg/80 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-3 backdrop-blur-xl backdrop-saturate-150 lg:pt-10">
+      <div className="sticky top-0 z-30 bg-bg/80 pt-[calc(var(--nav-h)+1.25rem)] pb-3 backdrop-blur-xl backdrop-saturate-150 lg:pt-[calc(var(--nav-h)+1.5rem)]">
         <div className="gutter flex items-end justify-between gap-4">
           <div>
             <h1 className="text-[32px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[38px]">Library</h1>
@@ -136,10 +136,10 @@ export function LibraryView({ items, error, initial }: Props) {
 
 const EMPTY_COPY: Record<TypeFilter, { line: string; cta: string; href: string }> = {
   all: { line: "Find something worth watching, reading or playing.", cta: "Start Searching", href: "/search" },
-  movie: { line: "Find something worth watching.", cta: "Browse Movies", href: "/search?type=movie" },
-  tv: { line: "Find a show worth starting.", cta: "Browse Shows", href: "/search?type=tv" },
-  book: { line: "Find something worth reading.", cta: "Browse Books", href: "/search?type=book" },
-  game: { line: "Find something worth playing.", cta: "Browse Games", href: "/search?type=game" },
+  movie: { line: "Find something worth watching.", cta: "Browse Movies", href: "/watch" },
+  tv: { line: "Find a show worth starting.", cta: "Browse Shows", href: "/watch" },
+  book: { line: "Find something worth reading.", cta: "Browse Books", href: "/books" },
+  game: { line: "Find something worth playing.", cta: "Browse Games", href: "/games" },
 };
 
 function LibraryEmpty({ type, filtered }: { type: TypeFilter; filtered: boolean }) {

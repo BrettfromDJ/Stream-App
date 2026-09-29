@@ -106,7 +106,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
 
   return (
     <div>
-      <div className="sticky top-0 z-30 bg-bg/80 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-3 backdrop-blur-xl backdrop-saturate-150 lg:pt-10">
+      <div className="sticky top-0 z-30 bg-bg/80 pt-[calc(var(--nav-h)+1.25rem)] pb-3 backdrop-blur-xl backdrop-saturate-150 lg:pt-[calc(var(--nav-h)+1.5rem)]">
         <h1 className="gutter text-[32px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[38px]">Search</h1>
         <div className="gutter mt-4">
           <label className="glass flex h-12 items-center gap-2.5 rounded-2xl px-4 md:max-w-xl">

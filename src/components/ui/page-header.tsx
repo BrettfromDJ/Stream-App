@@ -14,7 +14,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("gutter flex items-end justify-between gap-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] lg:pt-10", className)}>
+    <header className={cn("gutter flex items-end justify-between gap-4 pt-[calc(var(--nav-h)+1.25rem)] lg:pt-[calc(var(--nav-h)+1.75rem)]", className)}>
       <div className="min-w-0">
         {eyebrow ? <p className="mb-1 text-[13px] font-semibold tracking-wide text-fg-3 uppercase">{eyebrow}</p> : null}
         <h1 className="truncate text-[32px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[38px]">{title}</h1>

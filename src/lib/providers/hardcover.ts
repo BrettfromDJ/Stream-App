@@ -242,3 +242,86 @@ export async function getBook(id: string): Promise<MediaDetail> {
     metadata: { authors, pages, isbn, genres },
   };
 }
+
+/* ------------------------------------------------------------- books hub */
+
+export interface BooksHub {
+  newReleases: MediaSearchResult[];
+  anticipated: MediaSearchResult[];
+  topThisYear: MediaSearchResult[];
+  allTime: MediaSearchResult[];
+}
+
+const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Most of the Books tab in one GraphQL request (aliases), cached for hours. */
+export async function booksHub(): Promise<BooksHub> {
+  const now = new Date();
+  const today = isoDay(now);
+  const since = isoDay(new Date(now.getTime() - 75 * 86_400_000));
+  const year = now.getFullYear();
+  const fields = `${LIST_FIELDS} description`;
+  const data = await gql<Record<keyof BooksHub, HcBook[]>>(
+    `query Hub($today: date!, $since: date!, $year: Int!) {
+       newReleases: books(
+         where: { release_date: { _gte: $since, _lte: $today }, image_id: { _is_null: false } },
+         order_by: { users_count: desc }, limit: 24) { ${fields} }
+       anticipated: books(
+         where: { release_date: { _gt: $today }, image_id: { _is_null: false } },
+         order_by: { users_count: desc }, limit: 24) { ${fields} }
+       topThisYear: books(
+         where: { release_year: { _gte: $year }, ratings_count: { _gte: 25 }, image_id: { _is_null: false } },
+         order_by: { rating: desc }, limit: 20) { ${fields} }
+       allTime: books(
+         where: { image_id: { _is_null: false } },
+         order_by: { users_count: desc }, limit: 24) { ${fields} }
+     }`,
+    { today, since, year: year - (now.getMonth() < 3 ? 1 : 0) },
+    60 * 60 * 6,
+  );
+  const map = (list?: HcBook[]) => (list ?? []).map(normalizeBook).filter((b) => b.artworkUrl);
+  return {
+    newReleases: map(data.newReleases),
+    anticipated: map(data.anticipated).sort((a, b) => (a.releaseDate ?? "").localeCompare(b.releaseDate ?? "")),
+    topThisYear: map(data.topThisYear),
+    allTime: map(data.allTime),
+  };
+}
+
+/** What people are reading: Hardcover's trending books for the last month. */
+export async function trendingBooks(): Promise<MediaSearchResult[]> {
+  const now = new Date();
+  const from = isoDay(new Date(now.getTime() - 30 * 86_400_000));
+  const trending = await gql<{ books_trending?: { ids?: number[] } }>(
+    `query Trending($from: date!, $to: date!) {
+       books_trending(from: $from, to: $to, limit: 24, offset: 0) { ids }
+     }`,
+    { from, to: isoDay(now) },
+    60 * 60 * 6,
+  );
+  const ids = trending.books_trending?.ids ?? [];
+  if (!ids.length) return [];
+  const data = await gql<{ books: HcBook[] }>(
+    `query ByIds($ids: [Int!]) { books(where: { id: { _in: $ids } }) { ${LIST_FIELDS} description } }`,
+    { ids },
+    60 * 60 * 6,
+  );
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return data.books
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .map(normalizeBook)
+    .filter((b) => b.artworkUrl);
+}
+
+/** Maps an ISBN (e.g. from a bestseller list) to a Hardcover book ID. */
+export async function bookIdForIsbn(isbn: string): Promise<string | null> {
+  const data = await gql<{ editions: { book_id: number }[] }>(
+    `query ByIsbn($isbn: String!) {
+       editions(where: { _or: [{ isbn_13: { _eq: $isbn } }, { isbn_10: { _eq: $isbn } }] }, limit: 1) { book_id }
+     }`,
+    { isbn },
+    60 * 60 * 24 * 7,
+  );
+  const id = data.editions[0]?.book_id;
+  return id ? String(id) : null;
+}

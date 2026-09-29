@@ -8,8 +8,8 @@ interface RowProps {
   title: string;
   href?: string;
   children: ReactNode;
-  /** "poster" (default) or "wide" for continue cards. */
-  size?: "poster" | "wide";
+  /** "poster" (default), "wide" for continue/countdown cards, "ranked" for Top 10 rows. */
+  size?: "poster" | "wide" | "ranked";
   className?: string;
 }
 

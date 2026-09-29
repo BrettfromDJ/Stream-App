@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
-import { getMediaDetail, ProviderError } from "@/lib/providers";
+import { getMediaDetail, ProviderError, resolveBookIsbn } from "@/lib/providers";
 import { getLibraryIndex, getLibraryItem } from "@/lib/library/queries";
 import { cardFromItem, cardFromResult, type CardData } from "@/lib/media/card";
 import { yearFrom } from "@/lib/media/format";
@@ -51,6 +51,11 @@ function detailFromItem(item: LibraryItem): MediaDetail {
 }
 
 export async function DetailPage({ type, id }: { type: MediaType; id: string }) {
+  if (type === "book" && id.startsWith("isbn-")) {
+    const resolved = await resolveBookIsbn(id.slice(5));
+    if (!resolved) notFound();
+    redirect(`/book/${resolved}`);
+  }
   const item = await getLibraryItem(type, id);
   const [loaded, index] = await Promise.all([load(type, id, item), getLibraryIndex()]);
 
@@ -76,7 +81,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
       <div
         className={cn(
           "relative w-full overflow-hidden",
-          hasHero ? "h-[min(62vh,560px)] md:h-[min(70vh,640px)]" : "h-[calc(env(safe-area-inset-top)+4.5rem)] lg:h-24",
+          hasHero ? "h-[min(62vh,560px)] md:h-[min(70vh,640px)]" : "h-[calc(var(--nav-h)+4.5rem)]",
         )}
       >
         {hero ? (
@@ -93,7 +98,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         ) : null}
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-bg/10" />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-bg/60 via-transparent to-transparent max-md:hidden" />
-        <div className="gutter absolute top-[calc(env(safe-area-inset-top)+0.75rem)] left-0 lg:top-6">
+        <div className="gutter absolute top-[calc(var(--nav-h)+0.75rem)] left-0">
           <BackButton />
         </div>
       </div>
@@ -224,7 +229,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
 function Unavailable({ type, id }: { type: MediaType; id: string }) {
   return (
-    <div className="gutter pt-[calc(env(safe-area-inset-top)+1rem)] lg:pt-8">
+    <div className="gutter pt-[calc(var(--nav-h)+1rem)]">
       <BackButton />
       <div className="py-20 md:text-center">
         <p className="text-[22px] font-bold tracking-[-0.02em]">This title isn&apos;t available right now.</p>

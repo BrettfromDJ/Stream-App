@@ -4,6 +4,7 @@ import { ProviderError, safely } from "./http";
 import * as tmdb from "./tmdb";
 import * as ol from "./openlibrary";
 import * as hardcover from "./hardcover";
+import * as nyt from "./nyt";
 import * as igdb from "./igdb";
 
 export { ProviderError };
@@ -113,4 +114,71 @@ async function popularBooks() {
     if (books.length) return books;
   }
   return ol.trendingBooks();
+}
+
+/* ---------------------------------------------------------------- browse tabs */
+
+
+export type { GamesHub } from "./igdb";
+export type { BooksHub } from "./hardcover";
+export type { BestsellerList } from "./nyt";
+
+const EMPTY_GAMES: igdb.GamesHub = {
+  featured: [],
+  countdown: [],
+  justReleased: [],
+  topThisYear: [],
+  anticipated: [],
+  allTime: [],
+  rpg: [],
+  indie: [],
+  shooter: [],
+};
+
+const EMPTY_BOOKS: hardcover.BooksHub = { newReleases: [], anticipated: [], topThisYear: [], allTime: [] };
+
+/** Every loader resolves (never rejects) so a failing source just hides its rows. */
+export const browse = {
+  watch: {
+    trendingToday: () => safely(tmdb.trendingAllToday, []),
+    topMovies: () => safely(tmdb.trendingMovies, []),
+    topShows: () => safely(tmdb.trendingTv, []),
+    newToStreaming: () => safely(tmdb.newToStreaming, []),
+    inTheaters: () => safely(tmdb.nowPlayingMovies, []),
+    comingSoon: () => safely(tmdb.comingSoonMovies, []),
+    airing: () => safely(tmdb.airingTv, []),
+    topRatedMovies: () => safely(tmdb.topRatedMovies, []),
+    topRatedShows: () => safely(tmdb.topRatedTv, []),
+    movieGenre: (id: number) => safely(() => tmdb.moviesByGenre(id), []),
+    tvGenre: (id: number) => safely(() => tmdb.tvByGenre(id), []),
+    recommendations: (kind: "movie" | "tv", id: string) => safely(() => tmdb.recommendationsFor(kind, id), []),
+  },
+  games: {
+    hub: () => safely(igdb.gamesHub, EMPTY_GAMES),
+    popularNow: () => safely(igdb.popularNow, []),
+    similarTo: (id: string) => safely(() => igdb.similarTo(id), []),
+  },
+  books: {
+    hub: () => (hardcover.isHardcoverConfigured() ? safely(hardcover.booksHub, EMPTY_BOOKS) : Promise.resolve(EMPTY_BOOKS)),
+    trending: async () => {
+      if (hardcover.isHardcoverConfigured()) {
+        const books = await safely(hardcover.trendingBooks, []);
+        if (books.length) return books;
+      }
+      return safely(ol.trendingBooks, []);
+    },
+    trendingToday: () => safely(ol.trendingToday, []),
+    bestsellers: () => (nyt.isNytConfigured() ? safely(nyt.bestsellers, []) : Promise.resolve([])),
+    subject: (subject: string) => safely(() => ol.booksBySubject(subject), []),
+  },
+};
+
+/** Bestseller entries carry ISBNs; map them to a Hardcover (preferred) or Open Library ID. */
+export async function resolveBookIsbn(isbn: string): Promise<string | null> {
+  if (!/^[0-9Xx]{10,13}$/.test(isbn)) return null;
+  if (hardcover.isHardcoverConfigured()) {
+    const id = await safely(() => hardcover.bookIdForIsbn(isbn), null);
+    if (id) return id;
+  }
+  return safely(() => ol.workIdForIsbn(isbn), null);
 }

@@ -5,7 +5,7 @@ import { Children, useCallback, useEffect, useRef, useState, type ReactNode } fr
 import { cn } from "@/lib/utils";
 import { ROW_ITEM } from "./row-sizes";
 
-export function ScrollRow({ children, size }: { children: ReactNode; size: "poster" | "wide" }) {
+export function ScrollRow({ children, size }: { children: ReactNode; size: "poster" | "wide" | "ranked" }) {
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: false });
 
@@ -36,7 +36,7 @@ export function ScrollRow({ children, size }: { children: ReactNode; size: "post
         onScroll={update}
         className={cn(
           "no-scrollbar gutter flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth pb-2",
-          size === "wide" ? "gap-3 md:gap-4" : "gap-2.5 md:gap-3.5",
+          size === "wide" ? "gap-3 md:gap-4" : size === "ranked" ? "gap-1 md:gap-2" : "gap-2.5 md:gap-3.5",
           "scroll-px-[max(env(safe-area-inset-left),1.25rem)] md:scroll-px-8 xl:scroll-px-11",
         )}
       >

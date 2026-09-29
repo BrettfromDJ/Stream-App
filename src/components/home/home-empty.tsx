@@ -17,11 +17,14 @@ export function HomeEmpty() {
           <Link href="/search" className={buttonClasses("primary", "md")}>
             Search
           </Link>
-          <Link href="/search?type=movie" className={buttonClasses("soft", "md")}>
-            Browse Movies
+          <Link href="/watch" className={buttonClasses("soft", "md")}>
+            Movies & TV
           </Link>
-          <Link href="/search?type=book" className={buttonClasses("soft", "md")}>
-            Browse Books
+          <Link href="/books" className={buttonClasses("soft", "md")}>
+            Books
+          </Link>
+          <Link href="/games" className={buttonClasses("soft", "md")}>
+            Games
           </Link>
         </div>
       </div>

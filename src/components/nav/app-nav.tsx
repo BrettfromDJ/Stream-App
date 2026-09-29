@@ -4,31 +4,166 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
 import { House, LibraryBig, Search, CircleUserRound } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-const TABS = [
+const BOTTOM_TABS = [
   { href: "/", label: "Home", icon: House },
   { href: "/library", label: "Library", icon: LibraryBig },
   { href: "/search", label: "Search", icon: Search },
   { href: "/profile", label: "Profile", icon: CircleUserRound },
 ] as const;
 
-function useActive() {
+const BROWSE_TABS = [
+  { href: "/watch", label: "Movies & TV" },
+  { href: "/books", label: "Books" },
+  { href: "/games", label: "Games" },
+] as const;
+
+const DESKTOP_LINKS = [{ href: "/", label: "Home" }, ...BROWSE_TABS, { href: "/library", label: "My Library" }] as const;
+
+/** Routes that show the top bar on phones too (Netflix-style browse tabs). */
+const BROWSE_ROUTES = ["/", "/watch", "/books", "/games"];
+
+function isActive(pathname: string, href: string) {
+  return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function useScrolled(threshold = 8) {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > threshold);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  return scrolled;
+}
+
+/** Wraps the app so pages can offset themselves by the current nav height (var(--nav-h)). */
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  return (href: string) => (href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`));
+  const topBar = BROWSE_ROUTES.includes(pathname);
+  return (
+    <div className="app-shell" data-top-bar={topBar}>
+      <TopNav mobileVisible={topBar} />
+      {children}
+      <BottomNav />
+    </div>
+  );
+}
+
+/** Transparent over artwork at the top of the page, frosted glass once you scroll. */
+function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
+  const pathname = usePathname();
+  const scrolled = useScrolled();
+
+  return (
+    <header
+      className={cn(
+        "fixed inset-x-0 top-0 z-40 pt-[env(safe-area-inset-top)] transition-[background-color,backdrop-filter,box-shadow] duration-300",
+        !mobileVisible && "max-lg:hidden",
+        scrolled
+          ? "bg-bg/70 shadow-[0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-2xl backdrop-saturate-150"
+          : "bg-gradient-to-b from-black/70 via-black/25 to-transparent",
+      )}
+    >
+      {/* Phones: logo + browse tabs */}
+      <div className="gutter flex h-[3.25rem] items-center gap-3 lg:hidden">
+        <Link href="/" aria-label="Home" className="shrink-0">
+          <Logo className="size-7" />
+        </Link>
+        <nav aria-label="Browse" className="no-scrollbar -mr-5 flex gap-1.5 overflow-x-auto pr-5">
+          {BROWSE_TABS.map(({ href, label }) => {
+            const active = isActive(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "shrink-0 rounded-full border px-3.5 py-1.5 text-[13.5px] font-semibold whitespace-nowrap transition-colors",
+                  active ? "border-transparent bg-fg text-black" : "border-white/25 text-fg active:bg-white/10",
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Desktop: Netflix-style link bar */}
+      <div className="gutter hidden h-16 items-center gap-10 lg:flex">
+        <Link href="/" className="flex shrink-0 items-center gap-2.5">
+          <Logo />
+          <span className="text-[19px] font-bold tracking-[-0.03em]">Shelf</span>
+        </Link>
+        <nav aria-label="Primary" className="flex items-center gap-7">
+          {DESKTOP_LINKS.map(({ href, label }) => {
+            const active = isActive(pathname, href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "relative py-1 text-[14.5px] transition-colors",
+                  active ? "font-semibold text-fg" : "font-medium text-fg-2 hover:text-fg",
+                )}
+              >
+                {label}
+                {active && (
+                  <motion.span
+                    layoutId="top-nav-active"
+                    className="absolute inset-x-0 -bottom-1 h-[2px] rounded-full bg-fg"
+                    transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          <Link
+            href="/search"
+            aria-label="Search"
+            className={cn(
+              "grid size-10 place-items-center rounded-full transition-colors hover:bg-white/10",
+              isActive(pathname, "/search") && "bg-white/10",
+            )}
+          >
+            <Search className="size-[19px]" strokeWidth={2.1} />
+          </Link>
+          <Link
+            href="/profile"
+            aria-label="Profile"
+            className={cn(
+              "grid size-10 place-items-center rounded-full transition-colors hover:bg-white/10",
+              isActive(pathname, "/profile") && "bg-white/10",
+            )}
+          >
+            <CircleUserRound className="size-[21px]" strokeWidth={1.9} />
+          </Link>
+        </div>
+      </div>
+    </header>
+  );
 }
 
 /** Floating glass tab bar on phones/tablets. */
-export function BottomNav() {
-  const isActive = useActive();
+function BottomNav() {
+  const pathname = usePathname();
   return (
     <nav
       aria-label="Primary"
       className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+10px)] z-40 flex justify-center px-4 lg:hidden"
     >
       <div className="glass flex h-[64px] w-full max-w-[400px] items-stretch rounded-[32px] p-1.5">
-        {TABS.map(({ href, label, icon: Icon }) => {
-          const active = isActive(href);
+        {BOTTOM_TABS.map(({ href, label, icon: Icon }) => {
+          // Browse tabs belong to Home on phones.
+          const active =
+            isActive(pathname, href) || (href === "/" && BROWSE_TABS.some((t) => isActive(pathname, t.href)));
           return (
             <Link
               key={href}
@@ -56,45 +191,6 @@ export function BottomNav() {
         })}
       </div>
     </nav>
-  );
-}
-
-/** Compact sidebar on desktop. */
-export function Sidebar() {
-  const isActive = useActive();
-  return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[220px] flex-col bg-[#0c0c0c] px-3 pt-7 pb-6 lg:flex">
-      <Link href="/" className="mb-7 flex items-center gap-2.5 px-3">
-        <Logo />
-        <span className="text-[19px] font-bold tracking-[-0.03em]">Shelf</span>
-      </Link>
-      <nav aria-label="Primary" className="flex flex-col gap-0.5">
-        {TABS.map(({ href, label, icon: Icon }) => {
-          const active = isActive(href);
-          return (
-            <Link
-              key={href}
-              href={href}
-              aria-current={active ? "page" : undefined}
-              className={cn(
-                "relative flex h-10 items-center gap-3 rounded-xl px-3 text-[14.5px] font-medium transition-colors",
-                active ? "text-fg" : "text-fg-2 hover:bg-white/[0.04] hover:text-fg",
-              )}
-            >
-              {active && (
-                <motion.span
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 rounded-xl bg-white/[0.08]"
-                  transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
-                />
-              )}
-              <Icon aria-hidden className="relative size-[19px]" strokeWidth={active ? 2.2 : 1.9} />
-              <span className="relative">{label}</span>
-            </Link>
-          );
-        })}
-      </nav>
-    </aside>
   );
 }
 

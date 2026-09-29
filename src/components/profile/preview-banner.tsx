@@ -1,6 +1,6 @@
 export function PreviewBanner() {
   return (
-    <div className="gutter pt-[calc(env(safe-area-inset-top)+0.5rem)] lg:pt-4">
+    <div className="gutter pt-[calc(var(--nav-h)+0.5rem)]">
       <p className="rounded-2xl bg-white/[0.05] px-4 py-2.5 text-[13px] leading-snug text-fg-2">
         <span className="font-semibold text-fg">Preview</span> — showing sample content. Add your Supabase keys to sign in and
         save your own library.

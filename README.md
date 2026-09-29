@@ -29,6 +29,7 @@ simply hidden.
 | `IGDB_CLIENT_ID` | **server only** | dev.twitch.tv/console → register an application |
 | `IGDB_CLIENT_SECRET` | **server only** | same app → "New Secret" |
 | `HARDCOVER_API_TOKEN` | **server only**, optional | hardcover.app/account/api (books fall back to Open Library without it) |
+| `NYT_API_KEY` | **server only**, optional | developer.nytimes.com (Books API) — bestseller charts on the Books tab |
 | `OPENLIBRARY_CONTACT` | server only, optional | your email/URL for Open Library's User-Agent |
 | `NEXT_PUBLIC_SITE_URL` | server, optional | your production URL, for auth email links |
 
@@ -40,6 +41,7 @@ src/proxy.ts                Session refresh + route protection (Next 16 "proxy",
 src/app/
   (app)/                    Signed-in shell: sidebar (desktop) + floating tab bar (mobile)
     page.tsx                Home — library rows first, discovery rows stream in after
+    watch/ books/ games/    Browse tabs: featured hero, Top 10s, countdowns, bestsellers, genre rows
     library/                Filterable, sortable artwork grid
     search/                 Unified search (debounced, grouped, per-provider fault tolerant)
     movie|tv|book|game/[id] Detail pages (share components/detail/detail-page.tsx)

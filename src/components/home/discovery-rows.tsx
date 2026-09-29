@@ -8,13 +8,10 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { RowSkeleton } from "@/components/media/skeletons";
 
 const ROWS: { id: keyof typeof discovery; title: string; href?: string }[] = [
-  { id: "trendingMovies", title: "Trending Movies", href: "/search?type=movie" },
-  { id: "popularShows", title: "Popular Shows", href: "/search?type=tv" },
-  { id: "newGames", title: "New Games", href: "/search?type=game" },
-  { id: "popularBooks", title: "Popular Books", href: "/search?type=book" },
-  { id: "nowPlaying", title: "New in Theaters" },
-  { id: "airing", title: "Currently Airing" },
-  { id: "upcoming", title: "Coming Soon" },
+  { id: "trendingMovies", title: "Trending Movies", href: "/watch" },
+  { id: "popularShows", title: "Popular Shows", href: "/watch" },
+  { id: "newGames", title: "New Games", href: "/games" },
+  { id: "popularBooks", title: "Popular Books", href: "/books" },
 ];
 
 /** Discovery is secondary: each row streams in on its own and disappears if its provider fails. */

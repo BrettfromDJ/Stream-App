@@ -5,6 +5,7 @@ import { isSupabaseConfigured } from "@/lib/env";
 import { isLibraryStatus, isMediaType, type LibraryItem, type LibraryStatus, type MediaSnapshot } from "@/lib/media/types";
 import { normalizeDate } from "@/lib/media/format";
 import { createClient, getUser } from "@/lib/supabase/server";
+import { resolveBookIsbn } from "@/lib/providers";
 import { LIBRARY_COLUMNS, fromRow, type LibraryRow } from "./mappers";
 
 export type ActionError = "preview" | "auth" | "invalid" | "not_found" | "failed";
@@ -43,7 +44,12 @@ export async function addToLibrary(
   status: LibraryStatus,
 ): Promise<ActionResult<LibraryItem>> {
   if (!isMediaType(snapshot?.type) || !isLibraryStatus(status)) return fail("invalid", "Something about that title looks off.");
-  const externalId = text(snapshot.externalId, 64);
+  let externalId = text(snapshot.externalId, 64);
+  // Bestseller-list entries arrive as "isbn-…"; store the canonical book ID instead.
+  if (snapshot.type === "book" && externalId?.startsWith("isbn-")) {
+    externalId = await resolveBookIsbn(externalId.slice(5));
+    if (!externalId) return fail("not_found", "Couldn't find that book's details. Try adding it from Search.");
+  }
   const title = text(snapshot.title, 300);
   if (!externalId || !title) return fail("invalid", "Something about that title looks off.");
 

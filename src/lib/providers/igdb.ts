@@ -257,3 +257,93 @@ export async function getGame(id: string): Promise<MediaDetail> {
     metadata: { platforms: platformLabels(g), developers, publishers, genres },
   };
 }
+
+/* -------------------------------------------------------------- games hub */
+
+interface MultiResult {
+  name: string;
+  result?: IgdbGame[] | { game?: number; game_id?: number; value?: number }[];
+}
+
+export interface GamesHub {
+  featured: MediaSearchResult[];
+  countdown: MediaSearchResult[];
+  justReleased: MediaSearchResult[];
+  topThisYear: MediaSearchResult[];
+  anticipated: MediaSearchResult[];
+  allTime: MediaSearchResult[];
+  rpg: MediaSearchResult[];
+  indie: MediaSearchResult[];
+  shooter: MediaSearchResult[];
+}
+
+/**
+ * Everything on the Games tab in a single IGDB multiquery (IGDB allows 4 requests/second,
+ * so one batched request per cache window keeps us well clear of it).
+ */
+export async function gamesHub(): Promise<GamesHub> {
+  const t = now();
+  const day = 86_400;
+  const base = "cover != null & version_parent = null";
+  const q = (name: string, where: string, sort: string, limit = 20) =>
+    `query games "${name}" { ${LIST_FIELDS} where ${base} & ${where}; sort ${sort}; limit ${limit}; };`;
+
+  const body = [
+    q("featured", `first_release_date >= ${t - 45 * day} & first_release_date <= ${t} & hypes >= 5`, "hypes desc", 8),
+    q("countdown", `first_release_date > ${t} & first_release_date <= ${t + 150 * day} & hypes >= 3`, "first_release_date asc", 16),
+    q("justReleased", `first_release_date >= ${t - 30 * day} & first_release_date <= ${t} & hypes > 0`, "first_release_date desc"),
+    q("topThisYear", `first_release_date >= ${t - 365 * day} & first_release_date <= ${t} & total_rating_count >= 15`, "total_rating desc", 10),
+    q("anticipated", `first_release_date > ${t} & hypes >= 10`, "hypes desc"),
+    q("allTime", `total_rating_count >= 800`, "total_rating desc"),
+    q("rpg", `genres = (12) & first_release_date >= ${t - 3 * 365 * day} & total_rating_count >= 20`, "total_rating desc"),
+    q("indie", `genres = (32) & first_release_date >= ${t - 3 * 365 * day} & total_rating_count >= 20`, "total_rating desc"),
+    q("shooter", `genres = (5) & first_release_date >= ${t - 3 * 365 * day} & total_rating_count >= 15`, "total_rating desc"),
+  ].join("\n");
+
+  const results = await igdb<MultiResult[]>("multiquery", body, 60 * 60 * 3);
+  const pick = (name: string) =>
+    ((results.find((r) => r.name === name)?.result ?? []) as IgdbGame[]).map(normalize);
+
+  return {
+    featured: pick("featured").filter((g) => g.backdropUrl),
+    countdown: pick("countdown"),
+    justReleased: pick("justReleased"),
+    topThisYear: pick("topThisYear"),
+    anticipated: pick("anticipated"),
+    allTime: pick("allTime"),
+    rpg: pick("rpg"),
+    indie: pick("indie"),
+    shooter: pick("shooter"),
+  };
+}
+
+/** What IGDB members are playing right now (popularity primitives, type 3 = "Playing"). */
+export async function popularNow(): Promise<MediaSearchResult[]> {
+  const pop = await igdb<{ game_id: number; value: number }[]>(
+    "popularity_primitives",
+    `fields game_id, value; where popularity_type = 3; sort value desc; limit 30;`,
+    60 * 60 * 6,
+  );
+  const ids = pop.map((p) => p.game_id).filter(Boolean);
+  if (!ids.length) return [];
+  const games = await igdb<IgdbGame[]>(
+    "games",
+    `${LIST_FIELDS} where id = (${ids.join(",")}) & cover != null; limit ${ids.length};`,
+    60 * 60 * 6,
+  );
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return games.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0)).map(normalize).slice(0, 20);
+}
+
+/** "Because you loved …" */
+export async function similarTo(id: string): Promise<MediaSearchResult[]> {
+  if (!/^\d+$/.test(id)) return [];
+  const data = await igdb<IgdbGame[]>(
+    "games",
+    `fields similar_games.name, similar_games.first_release_date, similar_games.cover.image_id,
+       similar_games.artworks.image_id, similar_games.screenshots.image_id;
+     where id = ${id};`,
+    60 * 60 * 24,
+  );
+  return (data[0]?.similar_games ?? []).filter((g) => g.cover).map(normalize);
+}

@@ -186,3 +186,55 @@ export async function getBook(id: string): Promise<MediaDetail> {
     metadata: { authors, pages, isbn, genres },
   };
 }
+
+/* ------------------------------------------------------------- browse */
+
+interface OlSubjectWork {
+  key: string;
+  title: string;
+  authors?: { name: string }[];
+  cover_id?: number;
+  first_publish_year?: number;
+}
+
+/** Recent, well-known books in a subject (e.g. "fantasy", "science_fiction"). */
+export async function booksBySubject(subject: string): Promise<MediaSearchResult[]> {
+  const year = new Date().getFullYear();
+  const data = await fetchJson<{ works: OlSubjectWork[] }>(
+    `${API}/subjects/${encodeURIComponent(subject)}.json?limit=30&published_in=${year - 12}-${year}`,
+    { provider: "openlibrary", revalidate: 60 * 60 * 24, headers, timeoutMs: 10000 },
+  );
+  return data.works
+    .filter((w) => w.cover_id)
+    .map((w) =>
+      normalizeDoc({
+        key: w.key,
+        title: w.title,
+        author_name: w.authors?.map((a) => a.name),
+        cover_i: w.cover_id,
+        first_publish_year: w.first_publish_year,
+      }),
+    )
+    .slice(0, 20);
+}
+
+export async function trendingToday(): Promise<MediaSearchResult[]> {
+  const data = await fetchJson<{ works: OlSearchDoc[] }>(`${API}/trending/daily.json?limit=30`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 3,
+    headers,
+    timeoutMs: 10000,
+  });
+  return data.works.filter((w) => w.cover_i).map(normalizeDoc).slice(0, 20);
+}
+
+/** Maps an ISBN to an Open Library work ID ("OL…W"). */
+export async function workIdForIsbn(isbn: string): Promise<string | null> {
+  const data = await fetchJson<{ works?: { key: string }[] }>(`${API}/isbn/${encodeURIComponent(isbn)}.json`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 24 * 7,
+    headers,
+  });
+  const key = data.works?.[0]?.key;
+  return key ? workId(key) : null;
+}

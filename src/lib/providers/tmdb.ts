@@ -273,3 +273,76 @@ export async function getTv(id: string): Promise<MediaDetail> {
     },
   };
 }
+
+/* ------------------------------------------------------- browse (Movies & TV) */
+
+type Paged = TmdbPaged<TmdbListItem>;
+const today = () => new Date().toISOString().slice(0, 10);
+const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString().slice(0, 10);
+
+/** Today's trending movies and shows together (hero + mixed row). */
+export async function trendingAllToday() {
+  const data = await tmdb<Paged>("/trending/all/day", {}, 60 * 60 * 3);
+  return data.results
+    .filter((r): r is TmdbListItem & { media_type: TmdbKind } => r.media_type === "movie" || r.media_type === "tv")
+    .map((r) => normalize(r, r.media_type));
+}
+
+export async function topRatedMovies() {
+  return normalizeList((await tmdb<Paged>("/movie/top_rated", {}, 60 * 60 * 24)).results, "movie");
+}
+
+export async function topRatedTv() {
+  return normalizeList((await tmdb<Paged>("/tv/top_rated", {}, 60 * 60 * 24)).results, "tv");
+}
+
+/** Movies that became available to stream/rent (digital release) in the last ~6 weeks. */
+export async function newToStreaming() {
+  const data = await tmdb<Paged>("/discover/movie", {
+    region: "US",
+    with_release_type: "4",
+    "release_date.gte": daysAgo(45),
+    "release_date.lte": today(),
+    sort_by: "popularity.desc",
+    "vote_count.gte": "10",
+    include_adult: "false",
+  });
+  return normalizeList(data.results, "movie");
+}
+
+/** Upcoming theatrical releases that are actually still in the future. */
+export async function comingSoonMovies() {
+  const data = await tmdb<Paged>("/movie/upcoming", { region: "US" });
+  const now = today();
+  return normalizeList(data.results, "movie")
+    .filter((m) => m.releaseDate && m.releaseDate > now)
+    .sort((a, b) => (a.releaseDate ?? "").localeCompare(b.releaseDate ?? ""));
+}
+
+export async function moviesByGenre(genreId: number) {
+  const data = await tmdb<Paged>("/discover/movie", {
+    with_genres: String(genreId),
+    sort_by: "popularity.desc",
+    "vote_count.gte": "300",
+    "primary_release_date.gte": daysAgo(365 * 6),
+    include_adult: "false",
+  });
+  return normalizeList(data.results, "movie");
+}
+
+export async function tvByGenre(genreId: number) {
+  const data = await tmdb<Paged>("/discover/tv", {
+    with_genres: String(genreId),
+    sort_by: "popularity.desc",
+    "vote_count.gte": "150",
+    "first_air_date.gte": daysAgo(365 * 8),
+  });
+  return normalizeList(data.results, "tv");
+}
+
+/** "Because you loved …" */
+export async function recommendationsFor(kind: TmdbKind, id: string) {
+  if (!/^\d+$/.test(id)) return [];
+  const data = await tmdb<Paged>(`/${kind}/${id}/recommendations`, {}, 60 * 60 * 24);
+  return normalizeList(data.results, kind);
+}

@@ -21,13 +21,14 @@ export default async function HomePage() {
     <div className="animate-fade-in">
       {library.mode === "preview" && <PreviewBanner />}
       <PageHeader
+        className={library.mode === "preview" ? "pt-6 lg:pt-6" : undefined}
         eyebrow={<TodayLabel />}
         title={<Greeting />}
         actions={
           <Link
             href="/search"
             aria-label="Search"
-            className="glass grid size-11 place-items-center rounded-full transition-transform active:scale-95"
+            className="glass grid size-11 place-items-center rounded-full transition-transform active:scale-95 lg:hidden"
           >
             <Search className="size-5" strokeWidth={2.1} />
           </Link>

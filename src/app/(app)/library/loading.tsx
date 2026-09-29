@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function LibraryLoading() {
   return (
     <div aria-busy aria-label="Loading">
-      <div className="gutter pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-3 lg:pt-10">
+      <div className="gutter pt-[calc(var(--nav-h)+1.25rem)] pb-3 lg:pt-[calc(var(--nav-h)+1.5rem)]">
         <Skeleton className="h-8 w-36 rounded-lg" />
         <Skeleton className="mt-2 h-3 w-16 rounded-full" />
         <div className="mt-4 flex gap-1.5">

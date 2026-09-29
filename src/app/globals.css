@@ -37,6 +37,26 @@
   }
 }
 
+/* ------------------------------------------------------------ navigation */
+
+/*
+ * --nav-h is the space the fixed top navigation occupies.
+ * Phones: only the Home / browse tabs show a top bar (the tab bar lives at the bottom).
+ * Desktop: the top bar is always present.
+ */
+.app-shell {
+  --nav-h: env(safe-area-inset-top);
+}
+.app-shell[data-top-bar="true"] {
+  --nav-h: calc(env(safe-area-inset-top) + 3.25rem);
+}
+@media (width >= 64rem) {
+  .app-shell,
+  .app-shell[data-top-bar="true"] {
+    --nav-h: 4rem;
+  }
+}
+
 /* ------------------------------------------------------------------- base */
 
 @layer base {
