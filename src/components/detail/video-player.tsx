@@ -175,6 +175,11 @@ function useAmbientAllowed() {
  * actually playing, then fades in over the artwork — so a blocked or slow video never shows
  * a black box or YouTube's own UI. Paused (unmounted) while the full trailer player is open.
  */
+/** Seconds into the trailer to start, to reveal (once YouTube's overlay has faded) and to hide before looping. */
+const START_AT = 6;
+const REVEAL_AT = START_AT + 3.5;
+const HIDE_BEFORE_END = 2.5;
+
 export function TrailerBackdrop({ video }: { video: MediaVideo }) {
   const allowed = useAmbientAllowed();
   const modalOpen = usePlaying() !== null;
@@ -184,21 +189,47 @@ export function TrailerBackdrop({ video }: { video: MediaVideo }) {
 
   useEffect(() => {
     if (!active) return;
+    // Latest known player info (YouTube sends partial updates).
+    const info = { state: -1, time: 0, timeKnown: false, duration: 0, playingSince: 0 };
+    const evaluate = () => {
+      // Fallback if the embed reports state but not time: reveal after the overlay's usual lifetime.
+      const pastOverlay = info.timeKnown
+        ? info.time >= REVEAL_AT
+        : info.playingSince > 0 && Date.now() - info.playingSince > (REVEAL_AT - START_AT) * 1000;
+      setPlaying(
+        info.state === 1 && pastOverlay && (!info.duration || info.time < info.duration - HIDE_BEFORE_END),
+      );
+    };
     const onMessage = (e: MessageEvent) => {
       if (e.source !== frame.current?.contentWindow || typeof e.data !== "string") return;
+      let data: { event?: string; info?: unknown };
       try {
-        const data = JSON.parse(e.data) as { event?: string; info?: { playerState?: number; currentTime?: number } | number };
-        const state = typeof data.info === "object" ? data.info?.playerState : data.event === "onStateChange" ? data.info : undefined;
-        if (state === 1) setPlaying(true); // 1 = playing
+        data = JSON.parse(e.data);
       } catch {
-        /* not a YouTube message */
+        return;
       }
+      const prev = info.state;
+      if (data.event === "onStateChange" && typeof data.info === "number") info.state = data.info;
+      if ((data.event === "infoDelivery" || data.event === "initialDelivery") && data.info && typeof data.info === "object") {
+        const i = data.info as { playerState?: number; currentTime?: number; duration?: number };
+        if (typeof i.playerState === "number") info.state = i.playerState;
+        if (typeof i.currentTime === "number") {
+          info.time = i.currentTime;
+          info.timeKnown = true;
+        }
+        if (typeof i.duration === "number" && i.duration > 0) info.duration = i.duration;
+      }
+      if (info.state === 1 && prev !== 1) info.playingSince = Date.now();
+      // YouTube flashes its title bar and controls for the first ~3s of playback and again when
+      // the loop restarts. Only show the video in the clean stretch in between.
+      evaluate();
     };
     window.addEventListener("message", onMessage);
     // Ask the embed to report its state (YouTube's iframe message protocol).
     const listen = setInterval(() => {
       frame.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
-    }, 500);
+      evaluate();
+    }, 400);
     return () => {
       window.removeEventListener("message", onMessage);
       clearInterval(listen);
@@ -220,7 +251,7 @@ export function TrailerBackdrop({ video }: { video: MediaVideo }) {
     fs: "0",
     iv_load_policy: "3",
     modestbranding: "1",
-    start: "6", // skip most studio logos
+    start: String(START_AT), // skip most studio logos
     enablejsapi: "1",
     origin: window.location.origin,
   });
@@ -229,7 +260,8 @@ export function TrailerBackdrop({ video }: { video: MediaVideo }) {
     <div
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-[1500ms] ease-out [container-type:size]",
+        "pointer-events-none absolute inset-0 overflow-hidden transition-opacity ease-out [container-type:size]",
+        playing ? "duration-[1500ms]" : "duration-500",
         playing ? "opacity-100" : "opacity-0",
       )}
     >
