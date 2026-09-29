@@ -12,7 +12,7 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { LibraryPanel } from "@/components/library/library-panel";
 import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
-import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
+import { PlayTrailerButton, TrailerBackdrop, VideoModal, VideoRow } from "./video-player";
 import { cn } from "@/lib/utils";
 
 const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Hardcover", game: "IGDB" };
@@ -86,7 +86,14 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         )}
       >
         {hero ? (
-          <Image src={hero} alt="" fill priority sizes="100vw" className="fade-to-bg object-cover object-top" />
+          <>
+            <Image src={hero} alt="" fill priority sizes="100vw" className="fade-to-bg object-cover object-top" />
+            {detail.videos?.[0] && (
+              <div className="fade-to-bg absolute inset-0">
+                <TrailerBackdrop video={detail.videos[0]} />
+              </div>
+            )}
+          </>
         ) : detail.artworkUrl ? (
           <Image
             src={detail.artworkUrl}

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { Play, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import type { MediaVideo } from "@/lib/media/types";
 import { buttonClasses } from "@/components/ui/button";
@@ -147,5 +147,101 @@ export function VideoModal({ videos }: { videos: MediaVideo[] }) {
       )}
     </AnimatePresence>,
     document.body,
+  );
+}
+
+/* ------------------------------------------------------- ambient backdrop */
+
+const reducedMotion = (cb: () => void) => {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
+
+/** Skip on reduced-motion or data-saver, and until the browser has mounted. */
+function useAmbientAllowed() {
+  return useSyncExternalStore(
+    reducedMotion,
+    () => {
+      const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData;
+      return !window.matchMedia("(prefers-reduced-motion: reduce)").matches && !saveData;
+    },
+    () => false,
+  );
+}
+
+/**
+ * Silent, looping trailer behind the page header. It stays invisible until YouTube reports it's
+ * actually playing, then fades in over the artwork — so a blocked or slow video never shows
+ * a black box or YouTube's own UI. Paused (unmounted) while the full trailer player is open.
+ */
+export function TrailerBackdrop({ video }: { video: MediaVideo }) {
+  const allowed = useAmbientAllowed();
+  const modalOpen = usePlaying() !== null;
+  const [playing, setPlaying] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const active = allowed && !modalOpen;
+
+  useEffect(() => {
+    if (!active) return;
+    const onMessage = (e: MessageEvent) => {
+      if (e.source !== frame.current?.contentWindow || typeof e.data !== "string") return;
+      try {
+        const data = JSON.parse(e.data) as { event?: string; info?: { playerState?: number; currentTime?: number } | number };
+        const state = typeof data.info === "object" ? data.info?.playerState : data.event === "onStateChange" ? data.info : undefined;
+        if (state === 1) setPlaying(true); // 1 = playing
+      } catch {
+        /* not a YouTube message */
+      }
+    };
+    window.addEventListener("message", onMessage);
+    // Ask the embed to report its state (YouTube's iframe message protocol).
+    const listen = setInterval(() => {
+      frame.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: 1, channel: "widget" }), "*");
+    }, 500);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      clearInterval(listen);
+      setPlaying(false);
+    };
+  }, [active]);
+
+  if (!active) return null;
+
+  const params = new URLSearchParams({
+    autoplay: "1",
+    mute: "1",
+    controls: "0",
+    loop: "1",
+    playlist: video.youtubeId, // required for loop
+    playsinline: "1",
+    rel: "0",
+    disablekb: "1",
+    fs: "0",
+    iv_load_policy: "3",
+    modestbranding: "1",
+    start: "6", // skip most studio logos
+    enablejsapi: "1",
+    origin: window.location.origin,
+  });
+
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "pointer-events-none absolute inset-0 overflow-hidden transition-opacity duration-[1500ms] ease-out [container-type:size]",
+        playing ? "opacity-100" : "opacity-0",
+      )}
+    >
+      <iframe
+        ref={frame}
+        src={`https://www.youtube-nocookie.com/embed/${video.youtubeId}?${params}`}
+        title=""
+        tabIndex={-1}
+        allow="autoplay; encrypted-media"
+        // Cover the box like object-fit: cover, then over-scale to crop YouTube's edge UI.
+        className="absolute top-1/2 left-1/2 h-[max(100cqh,56.25cqw)] w-[max(100cqw,177.78cqh)] -translate-x-1/2 -translate-y-1/2 scale-[1.18] border-0"
+      />
+    </div>
   );
 }

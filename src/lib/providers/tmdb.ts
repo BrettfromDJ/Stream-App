@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
+import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo } from "@/lib/media/types";
 import { formatDate, formatRuntime, yearFrom } from "@/lib/media/format";
 import { ProviderError, fetchJson } from "./http";
 
@@ -51,6 +51,27 @@ interface TmdbDetailCommon {
   credits?: { cast?: TmdbCast[]; crew?: { job: string; name: string }[] };
   recommendations?: TmdbPaged<TmdbListItem>;
   similar?: TmdbPaged<TmdbListItem>;
+  videos?: { results: TmdbVideo[] };
+}
+
+interface TmdbVideo {
+  key: string;
+  site: string;
+  type: string;
+  name: string;
+  official?: boolean;
+  published_at?: string;
+}
+
+/** YouTube only; official trailers first, then teasers, then everything else (newest first within each). */
+function videosOf(d: TmdbDetailCommon): MediaVideo[] {
+  const rank = (v: TmdbVideo) =>
+    (v.type === "Trailer" ? 0 : v.type === "Teaser" ? 2 : v.type === "Clip" ? 4 : 5) + (v.official ? 0 : 1);
+  return (d.videos?.results ?? [])
+    .filter((v) => v.site === "YouTube" && /^[\w-]{6,20}$/.test(v.key))
+    .sort((a, b) => rank(a) - rank(b) || (b.published_at ?? "").localeCompare(a.published_at ?? ""))
+    .slice(0, 12)
+    .map((v) => ({ youtubeId: v.key, name: v.name }));
 }
 
 interface TmdbMovieDetail extends TmdbDetailCommon {
@@ -195,7 +216,7 @@ function facts(pairs: [string, string | number | null | undefined | false][]): M
 export async function getMovie(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbMovieDetail>(
     `/movie/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,release_dates" },
+    { append_to_response: "credits,recommendations,release_dates,videos", include_video_language: "en,null" },
     60 * 60 * 24,
   );
   const base = normalize({ ...d, id: d.id }, "movie");
@@ -222,6 +243,7 @@ export async function getMovie(id: string): Promise<MediaDetail> {
       ["Box office", d.revenue ? money.format(d.revenue) : null],
     ]),
     cast: castOf(d.credits),
+    videos: videosOf(d),
     related: normalizeList(d.recommendations?.results, "movie").slice(0, 18),
     score: score(d),
     metadata: { genres: d.genres?.map((g) => g.name) ?? [], runtime: d.runtime ?? null, director },
@@ -231,7 +253,7 @@ export async function getMovie(id: string): Promise<MediaDetail> {
 export async function getTv(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbTvDetail>(
     `/tv/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,content_ratings" },
+    { append_to_response: "credits,recommendations,content_ratings,videos", include_video_language: "en,null" },
     60 * 60 * 12,
   );
   const base = normalize({ ...d, id: d.id }, "tv");
@@ -263,6 +285,7 @@ export async function getTv(id: string): Promise<MediaDetail> {
       ["Episode length", formatRuntime(d.episode_run_time?.[0])],
     ]),
     cast: castOf(d.credits),
+    videos: videosOf(d),
     related: normalizeList(d.recommendations?.results, "tv").slice(0, 18),
     score: score(d),
     metadata: {
