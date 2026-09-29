@@ -33,6 +33,11 @@ export interface MediaPerson {
   imageUrl?: string | null;
 }
 
+export interface MediaVideo {
+  youtubeId: string;
+  name: string;
+}
+
 export interface MediaFact {
   label: string;
   value: string;
@@ -47,6 +52,8 @@ export interface MediaDetail extends MediaSearchResult {
   facts: MediaFact[];
   cast?: MediaPerson[];
   screenshots?: string[];
+  /** YouTube videos (trailers first). */
+  videos?: MediaVideo[];
   related?: MediaSearchResult[];
   score?: { value: number; max: number; source: string } | null;
 }

@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
+import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo } from "@/lib/media/types";
 import { cleanDescription, formatDate } from "@/lib/media/format";
 import { ProviderError, fetchJson } from "./http";
 
@@ -31,6 +31,7 @@ interface IgdbGame {
   cover?: IgdbImage;
   artworks?: IgdbImage[];
   screenshots?: IgdbImage[];
+  videos?: { name?: string; video_id?: string }[];
   platforms?: IgdbNamed[];
   genres?: IgdbNamed[];
   themes?: IgdbNamed[];
@@ -201,11 +202,25 @@ export async function upcomingGames(): Promise<MediaSearchResult[]> {
 
 /* ------------------------------------------------------------------ detail */
 
+/** Trailers first (launch/release trailers before announcements), then everything else. */
+function orderVideos(videos: IgdbGame["videos"]): MediaVideo[] {
+  const score = (name: string) =>
+    /launch|release/i.test(name) ? 0 : /official trailer|^trailer$/i.test(name) ? 1 : /trailer/i.test(name) ? 2 : /gameplay/i.test(name) ? 3 : 4;
+  const seen = new Set<string>();
+  return (videos ?? [])
+    .filter((v): v is { name?: string; video_id: string } => Boolean(v.video_id && /^[\w-]{6,20}$/.test(v.video_id)))
+    .filter((v) => !seen.has(v.video_id) && seen.add(v.video_id))
+    .map((v) => ({ youtubeId: v.video_id, name: v.name?.trim() || "Trailer" }))
+    .sort((a, b) => score(a.name) - score(b.name))
+    .slice(0, 12);
+}
+
 export async function getGame(id: string): Promise<MediaDetail> {
   if (!/^\d+$/.test(id)) throw new ProviderError("igdb", "not_found");
   const data = await igdb<IgdbGame[]>(
     "games",
     `fields name, summary, storyline, first_release_date, cover.image_id, artworks.image_id, screenshots.image_id,
+       videos.name, videos.video_id,
        platforms.name, platforms.abbreviation, genres.name, themes.name, game_modes.name, franchises.name,
        involved_companies.company.name, involved_companies.developer, involved_companies.publisher,
        aggregated_rating, aggregated_rating_count, total_rating, total_rating_count,
@@ -248,6 +263,7 @@ export async function getGame(id: string): Promise<MediaDetail> {
     ].filter(Boolean) as string[],
     facts,
     screenshots: [...(g.screenshots ?? []), ...(g.artworks ?? [])].slice(0, 12).map((s) => wide(s)!),
+    videos: orderVideos(g.videos),
     related: (g.similar_games ?? []).filter((s) => s.cover).map(normalize).slice(0, 18),
     score: critic
       ? { value: critic, max: 100, source: "Critics" }

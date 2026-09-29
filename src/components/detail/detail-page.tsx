@@ -12,6 +12,7 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { LibraryPanel } from "@/components/library/library-panel";
 import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
+import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
 import { cn } from "@/lib/utils";
 
 const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Hardcover", game: "IGDB" };
@@ -137,6 +138,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               ) : null}
             </p>
             {detail.genres.length > 0 && <p className="mt-1.5 text-[14px] text-fg-3">{detail.genres.slice(0, 4).join(" · ")}</p>}
+            {detail.videos?.[0] && <PlayTrailerButton video={detail.videos[0]} />}
           </div>
         </div>
       </div>
@@ -200,6 +202,8 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           </section>
         )}
 
+        {detail.videos && detail.videos.length > 0 && <VideoRow videos={detail.videos} />}
+
         {detail.screenshots && detail.screenshots.length > 0 && (
           <section aria-label="Screenshots">
             <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Screenshots</h2>
@@ -222,6 +226,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         )}
 
         <p className="gutter text-[12px] text-fg-3">Data from {sourceOf(type, id)}.</p>
+        {detail.videos && detail.videos.length > 0 && <VideoModal videos={detail.videos} />}
       </div>
     </article>
   );
