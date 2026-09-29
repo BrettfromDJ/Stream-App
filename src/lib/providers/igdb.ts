@@ -355,7 +355,7 @@ export async function similarTo(id: string): Promise<MediaSearchResult[]> {
  * charts show the same box art and open the same detail pages as everything else.
  */
 export async function gamesForSteamApps(appIds: string[]): Promise<Map<string, MediaSearchResult>> {
-  const ids = [...new Set(appIds.filter((id) => /^\d+$/.test(id)))].slice(0, 100);
+  const ids = [...new Set(appIds.filter((id) => /^\d+$/.test(id)))].slice(0, 150);
   const out = new Map<string, MediaSearchResult>();
   if (!ids.length) return out;
   const uids = ids.map((id) => `"${id}"`).join(",");

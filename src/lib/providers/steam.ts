@@ -45,8 +45,31 @@ function games(items?: SteamItem[]) {
   return (items ?? []).filter((i) => (i.type ?? 0) === 0 && !seen.has(i.id) && seen.add(i.id));
 }
 
+interface SearchResults {
+  items?: { name: string; logo?: string }[];
+}
+
+/**
+ * Steam store search lists (the same data behind store.steampowered.com/search), games only,
+ * in Steam's own ranking order. Returns app IDs parsed from each item's capsule image URL.
+ */
+async function searchList(filter: "topsellers" | "popularnew" | "popularcomingsoon" | "specials"): Promise<string[]> {
+  const params = new URLSearchParams({ start: "0", count: "50", category1: "998", cc: "us", l: "english", json: "1" });
+  if (filter === "specials") params.set("specials", "1");
+  else params.set("filter", filter);
+  const data = await fetchJson<SearchResults>(`https://store.steampowered.com/search/results/?${params}`, {
+    provider: "steam",
+    revalidate: 60 * 60 * 2,
+    timeoutMs: 9000,
+  }).catch(() => ({}) as SearchResults);
+  const ids = (data.items ?? [])
+    .map((i) => i.logo?.match(/\/apps\/(\d+)\//)?.[1])
+    .filter((id): id is string => Boolean(id));
+  return [...new Set(ids)];
+}
+
 export async function steamCharts(): Promise<SteamCharts> {
-  const [featured, played] = await Promise.all([
+  const [featured, played, topSellers, newReleases, comingSoon, specials] = await Promise.all([
     fetchJson<Featured>("https://store.steampowered.com/api/featuredcategories?cc=us&l=english", {
       provider: "steam",
       revalidate: 60 * 60 * 2,
@@ -57,34 +80,45 @@ export async function steamCharts(): Promise<SteamCharts> {
       revalidate: 60 * 60 * 2,
       timeoutMs: 9000,
     }).catch(() => ({}) as MostPlayed),
+    searchList("topsellers"),
+    searchList("popularnew"),
+    searchList("popularcomingsoon"),
+    searchList("specials"),
   ]);
 
+  // Prefer the long search lists; fall back to the short featured lists if search is unavailable.
+  const pickIds = (search: string[], items?: SteamItem[]) =>
+    (search.length ? search : games(items).map((i) => String(i.id))).slice(0, 40);
+  const discount = new Map(games(featured.specials?.items).map((i) => [String(i.id), i.discount_percent ?? 0]));
+
   const lists = {
-    topSellers: games(featured.top_sellers?.items),
-    newReleases: games(featured.new_releases?.items),
-    deals: games(featured.specials?.items),
-    comingSoon: games(featured.coming_soon?.items),
+    topSellers: pickIds(topSellers, featured.top_sellers?.items),
+    newReleases: pickIds(newReleases, featured.new_releases?.items),
+    comingSoon: pickIds(comingSoon, featured.coming_soon?.items),
+    deals: pickIds(specials, featured.specials?.items),
   };
-  const ranks = (played.response?.ranks ?? []).sort((a, b) => a.rank - b.rank).slice(0, 30);
+  const ranks = (played.response?.ranks ?? []).sort((a, b) => a.rank - b.rank).slice(0, 40);
 
-  const allIds = [
-    ...Object.values(lists).flatMap((l) => l.map((i) => String(i.id))),
-    ...ranks.map((r) => String(r.appid)),
-  ];
-  const igdb = await gamesForSteamApps(allIds);
+  const igdb = await gamesForSteamApps([
+    ...lists.topSellers.slice(0, 30),
+    ...ranks.slice(0, 30).map((r) => String(r.appid)),
+    ...lists.newReleases.slice(0, 20),
+    ...lists.deals.slice(0, 20),
+    ...lists.comingSoon.slice(0, 20),
+  ]);
 
-  const map = (items: SteamItem[], badge?: (i: SteamItem) => string | null) =>
-    items.flatMap((i) => {
-      const g = igdb.get(String(i.id));
+  const map = (ids: string[], badge?: (id: string) => string | null) =>
+    ids.flatMap((id) => {
+      const g = igdb.get(id);
       if (!g) return [];
-      const label = badge?.(i);
+      const label = badge?.(id);
       return [{ ...g, metadata: { ...g.metadata, ...(label ? { badge: label } : {}) } }];
     });
 
   return {
     topSellers: map(lists.topSellers),
     newReleases: map(lists.newReleases),
-    deals: map(lists.deals, (i) => (i.discount_percent ? `−${i.discount_percent}%` : null)),
+    deals: map(lists.deals, (id) => (discount.get(id) ? `−${discount.get(id)}%` : null)),
     comingSoon: map(lists.comingSoon),
     mostPlayed: ranks.flatMap((r) => {
       const g = igdb.get(String(r.appid));
