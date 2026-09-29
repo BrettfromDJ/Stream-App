@@ -3,7 +3,7 @@ import type { MediaDetail, MediaSearchResult, MediaType } from "@/lib/media/type
 import { ProviderError, safely } from "./http";
 import * as tmdb from "./tmdb";
 import * as ol from "./openlibrary";
-import * as rawg from "./rawg";
+import * as igdb from "./igdb";
 
 export { ProviderError };
 
@@ -19,7 +19,7 @@ export async function getMediaDetail(type: MediaType, id: string): Promise<Media
     case "book":
       return ol.getBook(id);
     case "game":
-      return rawg.getGame(id);
+      return igdb.getGame(id);
   }
 }
 
@@ -40,7 +40,7 @@ export async function searchAll(query: string, filter: SearchFilter): Promise<Gr
   const [screen, books, games] = await Promise.allSettled([
     wants("movie") || wants("tv") ? tmdb.searchTmdb(query, tmdbKind) : Promise.resolve(empty),
     wants("book") ? ol.searchBooks(query) : Promise.resolve(empty),
-    wants("game") ? rawg.searchGames(query) : Promise.resolve(empty),
+    wants("game") ? igdb.searchGames(query) : Promise.resolve(empty),
   ]);
 
   const unavailable: MediaType[] = [];
@@ -80,13 +80,14 @@ export const discovery = {
   nowPlaying: () => safely(tmdb.nowPlayingMovies, []),
   upcoming: () => safely(tmdb.upcomingMovies, []),
   airing: () => safely(tmdb.airingTv, []),
-  newGames: () => safely(rawg.newGames, []),
-  popularGames: () => safely(rawg.popularGames, []),
+  newGames: () => safely(igdb.newGames, []),
+  popularGames: () => safely(igdb.popularGames, []),
+  upcomingGames: () => safely(igdb.upcomingGames, []),
   popularBooks: () => safely(ol.trendingBooks, []),
 };
 
 export const providerStatus = () => ({
   tmdb: tmdb.isTmdbConfigured(),
-  rawg: rawg.isRawgConfigured(),
+  igdb: igdb.isIgdbConfigured(),
   openlibrary: true,
 });

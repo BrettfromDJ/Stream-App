@@ -26,7 +26,7 @@ export function MediaCard({ media, sizes, priority, className, showRating = true
   const quick = useQuickActions();
   const openQuick = quick ? () => quick.open(media) : undefined;
   const longPress = useLongPress(openQuick);
-  // RAWG art is landscape; a portrait crop needs a wider source image.
+  // Landscape art cropped into a portrait card needs a wider source image.
   const artSizes = media.landscape ? widen(sizes) : sizes;
 
   return (

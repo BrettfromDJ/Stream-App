@@ -50,6 +50,7 @@ const BROWSE: Record<SearchFilter, { title: string; load: () => Promise<MediaSea
   game: [
     { title: "New Games", load: discovery.newGames },
     { title: "Highly Rated This Year", load: discovery.popularGames },
+    { title: "Most Anticipated", load: discovery.upcomingGames },
   ],
 };
 

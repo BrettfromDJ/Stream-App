@@ -11,7 +11,7 @@ export interface CardData {
   releaseDate?: string | null;
   artworkUrl?: string | null;
   backdropUrl?: string | null;
-  /** RAWG artwork is landscape; cards crop it and request a wider image. */
+  /** Artwork is landscape (e.g. a screenshot stand-in); cards crop it and request a wider image. */
   landscape?: boolean;
   libraryId?: string | null;
   status?: LibraryStatus | null;
@@ -34,7 +34,7 @@ export function cardFromItem(item: LibraryItem): CardData {
     releaseDate: item.releaseDate,
     artworkUrl: item.artworkUrl,
     backdropUrl: item.backdropUrl,
-    landscape: item.mediaType === "game",
+    landscape: item.metadata.landscapeArtwork === true,
     libraryId: item.id,
     status: item.status,
     rating: item.rating,
@@ -54,7 +54,7 @@ export function cardFromResult(result: MediaSearchResult, index?: LibraryIndex):
     releaseDate: result.releaseDate,
     artworkUrl: result.artworkUrl,
     backdropUrl: result.backdropUrl,
-    landscape: result.type === "game",
+    landscape: result.metadata?.landscapeArtwork === true,
     libraryId: entry?.id ?? null,
     status: entry?.status ?? null,
     rating: entry?.rating ?? null,

@@ -14,7 +14,7 @@ import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
 import { cn } from "@/lib/utils";
 
-const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Open Library", game: "RAWG" };
+const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Open Library", game: "IGDB" };
 
 type Loaded = { detail: MediaDetail; degraded: boolean };
 
@@ -68,7 +68,6 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
   const hero = detail.backdropUrl ?? null;
   const hasHero = Boolean(hero || detail.artworkUrl);
-  const isGame = type === "game";
 
   return (
     <article className="relative animate-fade-in">
@@ -105,7 +104,6 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             className={cn(
               "relative w-[34vw] max-w-[150px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
               "aspect-[2/3]",
-              isGame && hero && "hidden md:block",
             )}
           >
             <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 34vw" priority />
@@ -127,7 +125,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
                 <span className="inline-flex items-center gap-2">
                   {detail.highlights.length > 0 && <span aria-hidden className="text-fg-3">·</span>}
                   <span className="rounded-md bg-white/10 px-1.5 py-px text-[12px] font-semibold text-fg">
-                    {detail.score.source === "Metacritic" ? `Metacritic ${detail.score.value}` : `${detail.score.source} ${detail.score.value}/${detail.score.max}`}
+                    {detail.score.max === 100 ? `${detail.score.source} ${detail.score.value}` : `${detail.score.source} ${detail.score.value}/${detail.score.max}`}
                   </span>
                 </span>
               ) : null}
@@ -210,7 +208,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         )}
 
         {detail.related && detail.related.length > 0 && (
-          <Row title={type === "game" ? "In the Same Series" : "You Might Also Like"}>
+          <Row title="You Might Also Like">
             {detail.related.map((r) => (
               <MediaCard key={r.externalId} media={cardFromResult(r, index)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
             ))}

@@ -1,6 +1,6 @@
 import "server-only";
 
-export type ProviderName = "tmdb" | "openlibrary" | "rawg";
+export type ProviderName = "tmdb" | "openlibrary" | "igdb";
 
 export class ProviderError extends Error {
   constructor(
@@ -18,6 +18,9 @@ interface FetchJsonOptions {
   /** Seconds to cache the response in the Next.js data cache. */
   revalidate: number;
   headers?: HeadersInit;
+  method?: "GET" | "POST";
+  /** POST bodies are part of the cache key. */
+  body?: string;
   timeoutMs?: number;
   tags?: string[];
 }
@@ -26,6 +29,8 @@ export async function fetchJson<T>(url: string, opts: FetchJsonOptions): Promise
   let res: Response;
   try {
     res = await fetch(url, {
+      method: opts.method ?? "GET",
+      body: opts.body,
       headers: { Accept: "application/json", ...opts.headers },
       signal: AbortSignal.timeout(opts.timeoutMs ?? 8000),
       next: { revalidate: opts.revalidate, tags: opts.tags },

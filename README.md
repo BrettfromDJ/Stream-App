@@ -16,7 +16,7 @@ Next.js (App Router) · TypeScript · Tailwind CSS v4 · Supabase · Motion · d
 5. `npm run dev`
 
 Without Supabase keys the app runs as a read-only **preview** with sample content, so every
-Vercel preview deploy stays viewable. Without TMDB/RAWG keys, those rows and search groups are
+Vercel preview deploy stays viewable. Without TMDB/IGDB keys, those rows and search groups are
 simply hidden.
 
 ## Environment variables
@@ -26,7 +26,8 @@ simply hidden.
 | `NEXT_PUBLIC_SUPABASE_URL` | browser + server | Supabase → Project Settings → API |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | browser + server (safe to expose; RLS protects data) | Supabase → Project Settings → API keys |
 | `TMDB_API_KEY` | **server only** | themoviedb.org → Settings → API (Read Access Token or v3 key) |
-| `RAWG_API_KEY` | **server only** | rawg.io/apidocs |
+| `IGDB_CLIENT_ID` | **server only** | dev.twitch.tv/console → register an application |
+| `IGDB_CLIENT_SECRET` | **server only** | same app → "New Secret" |
 | `OPENLIBRARY_CONTACT` | server only, optional | your email/URL for Open Library's User-Agent |
 | `NEXT_PUBLIC_SITE_URL` | server, optional | your production URL, for auth email links |
 
@@ -46,7 +47,7 @@ src/app/
   auth/callback/            Magic-link / confirmation handler
   api/search/               Server-side search endpoint (keeps API keys off the client)
 src/lib/
-  providers/                tmdb.ts · openlibrary.ts · rawg.ts → normalized MediaSearchResult / MediaDetail
+  providers/                tmdb.ts · openlibrary.ts · igdb.ts → normalized MediaSearchResult / MediaDetail
   library/                  queries (server), actions (server actions), selectors (pure sorting/sections/stats)
   media/                    Shared types, status labels, formatting, card mapping
   supabase/                 Server + proxy clients
@@ -60,7 +61,7 @@ src/components/             ui/ · media/ · library/ · nav/ · detail/ · sear
 - **Statuses** are stored as `backlog | in_progress | completed | dropped` and labelled per type in the UI.
 - **Dates** (`date_started`, `date_finished`, `reviewed_at`) are maintained by a database trigger.
 - **Caching**: provider responses use the Next.js data cache (search 1h, discovery 6–12h, details 12–24h).
-- **Images** use `next/image` with a custom loader mapped onto TMDB / Open Library / RAWG sizes —
+- **Images** use `next/image` with a custom loader mapped onto TMDB / Open Library / IGDB sizes —
   no Vercel image-optimization usage.
 
-Attribution for TMDB, RAWG and Open Library lives on the Profile screen.
+Attribution for TMDB, IGDB and Open Library lives on the Profile screen.

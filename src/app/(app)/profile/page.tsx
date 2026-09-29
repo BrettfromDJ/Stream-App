@@ -68,8 +68,8 @@ export default async function ProfilePage() {
         </p>
         <p>
           Game data and images from{" "}
-          <a className="underline decoration-white/20 underline-offset-2 hover:text-fg-2" href="https://rawg.io" target="_blank" rel="noreferrer">
-            RAWG
+          <a className="underline decoration-white/20 underline-offset-2 hover:text-fg-2" href="https://www.igdb.com" target="_blank" rel="noreferrer">
+            IGDB
           </a>
           .
         </p>
