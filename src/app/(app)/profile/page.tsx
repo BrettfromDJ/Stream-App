@@ -71,7 +71,7 @@ export default async function ProfilePage() {
           <a className="underline decoration-white/20 underline-offset-2 hover:text-fg-2" href="https://www.igdb.com" target="_blank" rel="noreferrer">
             IGDB
           </a>
-          .
+          . Store charts from Steam. Not affiliated with Valve.
         </p>
         <p>
           Book data and covers from{" "}

@@ -14,6 +14,7 @@ const g = browse.games;
 export default function GamesPage() {
   // One batched IGDB request feeds most rows.
   const hub = g.hub();
+  const steam = g.steam();
   return (
     <div className="animate-fade-in">
       <Suspense fallback={<HeroSkeleton />}>
@@ -31,6 +32,12 @@ export default function GamesPage() {
             <DiscoverRow title="Countdown" items={hub.then((h) => h.countdown)} variant="countdown" />
           </Lazy>
           <Lazy>
+            <DiscoverRow title="Top Sellers on Steam" items={steam.then((s) => s.topSellers)} variant="ranked" />
+          </Lazy>
+          <Lazy>
+            <DiscoverRow title="Most Played on Steam" items={steam.then((s) => s.mostPlayed)} />
+          </Lazy>
+          <Lazy>
             <DiscoverRow title="Popular Right Now" items={g.popularNow()} />
           </Lazy>
           <Lazy>
@@ -40,10 +47,19 @@ export default function GamesPage() {
             <DiscoverRow title="Just Released" items={hub.then((h) => h.justReleased)} />
           </Lazy>
           <Lazy>
+            <DiscoverRow title="New & Trending on Steam" items={steam.then((s) => s.newReleases)} />
+          </Lazy>
+          <Lazy>
             <DiscoverRow title="Top 10 This Year" items={hub.then((h) => h.topThisYear)} variant="ranked" />
           </Lazy>
           <Lazy>
+            <DiscoverRow title="Steam Deals" items={steam.then((s) => s.deals)} />
+          </Lazy>
+          <Lazy>
             <DiscoverRow title="Most Anticipated" items={hub.then((h) => h.anticipated)} dates />
+          </Lazy>
+          <Lazy>
+            <DiscoverRow title="Coming Soon on Steam" items={steam.then((s) => s.comingSoon)} dates />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Great Recent RPGs" items={hub.then((h) => h.rpg)} />

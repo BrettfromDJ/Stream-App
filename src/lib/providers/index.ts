@@ -5,6 +5,7 @@ import * as tmdb from "./tmdb";
 import * as ol from "./openlibrary";
 import * as hardcover from "./hardcover";
 import * as nyt from "./nyt";
+import * as steam from "./steam";
 import * as igdb from "./igdb";
 
 export { ProviderError };
@@ -135,6 +136,8 @@ const EMPTY_GAMES: igdb.GamesHub = {
   shooter: [],
 };
 
+const EMPTY_STEAM: steam.SteamCharts = { topSellers: [], mostPlayed: [], newReleases: [], deals: [], comingSoon: [] };
+
 const EMPTY_BOOKS: hardcover.BooksHub = { newReleases: [], anticipated: [], topThisYear: [], allTime: [] };
 
 /** Every loader resolves (never rejects) so a failing source just hides its rows. */
@@ -157,6 +160,11 @@ export const browse = {
     hub: () => safely(igdb.gamesHub, EMPTY_GAMES),
     popularNow: () => safely(igdb.popularNow, []),
     similarTo: (id: string) => safely(() => igdb.similarTo(id), []),
+    // Steam rows need IGDB for matching, so skip them when IGDB isn't configured.
+    steam: () =>
+      igdb.isIgdbConfigured()
+        ? safely(steam.steamCharts, EMPTY_STEAM)
+        : Promise.resolve(EMPTY_STEAM),
   },
   books: {
     hub: () => (hardcover.isHardcoverConfigured() ? safely(hardcover.booksHub, EMPTY_BOOKS) : Promise.resolve(EMPTY_BOOKS)),

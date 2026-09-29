@@ -54,7 +54,7 @@ export async function DiscoverRow({ title, items, variant = "poster", dates, hre
           showRating={false}
           showInLibrary
           rank={variant === "ranked" ? i + 1 : undefined}
-          badge={dates ? dateBadge(item.releaseDate) : null}
+          badge={typeof item.metadata?.badge === "string" ? item.metadata.badge : dates ? dateBadge(item.releaseDate) : null}
         />
       ))}
     </Row>

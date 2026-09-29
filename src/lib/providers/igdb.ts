@@ -347,3 +347,45 @@ export async function similarTo(id: string): Promise<MediaSearchResult[]> {
   );
   return (data[0]?.similar_games ?? []).filter((g) => g.cover).map(normalize);
 }
+
+/* ------------------------------------------------------- Steam → IGDB */
+
+/**
+ * Maps Steam app IDs to IGDB games (via IGDB's external_games, source 1 = Steam) so Steam
+ * charts show the same box art and open the same detail pages as everything else.
+ */
+export async function gamesForSteamApps(appIds: string[]): Promise<Map<string, MediaSearchResult>> {
+  const ids = [...new Set(appIds.filter((id) => /^\d+$/.test(id)))].slice(0, 100);
+  const out = new Map<string, MediaSearchResult>();
+  if (!ids.length) return out;
+  const uids = ids.map((id) => `"${id}"`).join(",");
+  const lookup = (where: string) =>
+    igdb<{ game?: number; uid?: string }[]>(
+      "external_games",
+      `fields game, uid; where uid = (${uids}) & ${where}; limit 500;`,
+      60 * 60 * 12,
+    );
+  // IGDB renamed `category` to `external_game_source`; try the new name first.
+  let links: { game?: number; uid?: string }[];
+  try {
+    links = await lookup("external_game_source = 1");
+  } catch {
+    links = await lookup("category = 1");
+  }
+  const gameByApp = new Map<string, number>();
+  for (const l of links) if (l.uid && l.game && !gameByApp.has(l.uid)) gameByApp.set(l.uid, l.game);
+  const gameIds = [...new Set(gameByApp.values())];
+  if (!gameIds.length) return out;
+
+  const games = await igdb<IgdbGame[]>(
+    "games",
+    `${LIST_FIELDS} where id = (${gameIds.join(",")}); limit ${gameIds.length};`,
+    60 * 60 * 12,
+  );
+  const byId = new Map(games.map((g) => [g.id, normalize(g)]));
+  for (const [app, game] of gameByApp) {
+    const g = byId.get(game);
+    if (g?.artworkUrl) out.set(app, g);
+  }
+  return out;
+}
