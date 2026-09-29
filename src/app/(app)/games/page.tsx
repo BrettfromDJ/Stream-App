@@ -47,7 +47,7 @@ export default function GamesPage() {
             <DiscoverRow title="Just Released" items={hub.then((h) => h.justReleased)} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="New & Trending on Steam" items={steam.then((s) => s.newReleases)} />
+            <DiscoverRow title="Popular New Releases on Steam" items={steam.then((s) => s.newReleases)} />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Top 10 This Year" items={hub.then((h) => h.topThisYear)} variant="ranked" />

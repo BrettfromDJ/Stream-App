@@ -57,6 +57,8 @@ async function searchList(filter: "topsellers" | "popularnew" | "popularcomingso
   const params = new URLSearchParams({ start: "0", count: "50", category1: "998", cc: "us", l: "english", json: "1" });
   if (filter === "specials") params.set("specials", "1");
   else params.set("filter", filter);
+  // Steam's "Popular New Releases" list = popular new games, newest first.
+  if (filter === "popularnew") params.set("sort_by", "Released_DESC");
   const data = await fetchJson<SearchResults>(`https://store.steampowered.com/search/results/?${params}`, {
     provider: "steam",
     revalidate: 60 * 60 * 2,
