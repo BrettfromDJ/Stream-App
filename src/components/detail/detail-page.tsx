@@ -161,7 +161,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 34vw" priority />
           </div>
           )}
-          <div className="min-w-0 md:pb-2">
+          <div className="min-w-0 max-md:w-full md:pb-2">
             <p className="text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">{TYPE_LABEL[type]}</p>
             <h1 className="mt-1 text-[30px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[44px] lg:text-[52px]">
               {detail.title}
@@ -197,7 +197,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             </p>
             {detail.genres.length > 0 && <p className="mt-1.5 text-[14px] text-fg-3">{detail.genres.slice(0, 4).join(" · ")}</p>}
             {(detail.videos?.[0] || upcoming) && (
-              <div className={cn("mt-5 flex flex-wrap gap-2", center)}>
+              <div className={cn("mt-5 flex gap-2 max-md:w-full max-md:*:flex-1 md:flex-wrap", center)}>
                 {detail.videos?.[0] && <PlayTrailerButton video={detail.videos[0]} />}
                 {upcoming && <RemindMe media={card} date={upcoming} />}
               </div>
@@ -207,7 +207,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
       </div>
 
       {/* Body */}
-      <div className="gutter mt-8 grid gap-10 md:mt-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="gutter mt-3 grid gap-10 md:mt-10 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="order-2 flex min-w-0 flex-col gap-10 lg:order-1">
           {degraded && (
             <p className="rounded-2xl bg-white/[0.05] px-4 py-3 text-[14px] text-fg-2">

@@ -77,8 +77,8 @@ export function LibraryPanel({ media, review, reviewedAt }: LibraryPanelProps) {
   if (!media.libraryId) {
     return (
       <>
-        <motion.div whileTap={{ scale: 0.97 }} className="inline-block">
-          <Button size="lg" onClick={() => !pending && setStatusOpen(true)} className="min-w-[148px]">
+        <motion.div whileTap={{ scale: 0.97 }} className="max-md:block md:inline-block">
+          <Button size="lg" onClick={() => !pending && setStatusOpen(true)} className="min-w-[148px] max-md:w-full">
             <AnimatePresence mode="popLayout" initial={false}>
               {status ? (
                 <motion.span key="added" className="inline-flex items-center gap-2" initial={{ opacity: 0, scale: 0.6 }} animate={{ opacity: 1, scale: 1 }}>

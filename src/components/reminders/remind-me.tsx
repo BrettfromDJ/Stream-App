@@ -18,7 +18,7 @@ export function RemindMe({ media, date }: { media: CardData; date: string }) {
 
   if (on) {
     return (
-      <Link href="/reminders" className={buttonClasses("glass", "md")}>
+      <Link href="/reminders" className={buttonClasses("glass", "md", "max-md:h-[52px] max-md:text-[16px]")}>
         <BellRing /> {media.type === "tv" ? "Next Episode" : "Reminder On"}
         <span className="font-medium text-fg-2">
           · <RelativeDay date={date} />
@@ -29,7 +29,7 @@ export function RemindMe({ media, date }: { media: CardData; date: string }) {
   return (
     <button
       type="button"
-      className={buttonClasses("glass", "md")}
+      className={buttonClasses("glass", "md", "max-md:h-[52px] max-md:text-[16px]")}
       onClick={() => {
         haptic();
         startTransition(async () => {
