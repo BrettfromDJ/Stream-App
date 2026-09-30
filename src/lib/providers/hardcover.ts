@@ -81,7 +81,8 @@ interface HcBook {
   image?: HcImage | null;
   cached_contributors?: HcContributor[] | null;
   cached_tags?: Record<string, { tag?: string }[]> | null;
-  book_series?: { position?: number | null; series?: { name?: string } | null }[];
+  book_series?: { position?: number | null; series?: { id?: number; name?: string } | null }[];
+  contributions?: { contribution?: string | null; author?: { id?: number; name?: string } | null }[];
 }
 
 /* ---------------------------------------------------------------- mapping */
@@ -173,6 +174,119 @@ export async function popularBooks(): Promise<MediaSearchResult[]> {
   return data.books.map(normalizeBook).filter((b) => b.artworkUrl);
 }
 
+/* ------------------------------------------------------------ related */
+
+interface HcRelatedBook extends HcBook {
+  users_count?: number | null;
+}
+
+const RELATED_FIELDS = `${LIST_FIELDS} users_count`;
+
+/** Hardcover lists some editions as separate books; keep the most-read one per title. */
+function dedupeByTitle(books: HcRelatedBook[]) {
+  const best = new Map<string, HcRelatedBook>();
+  for (const b of books) {
+    const key = b.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+    const cur = best.get(key);
+    if (!cur || (b.users_count ?? 0) > (cur.users_count ?? 0)) best.set(key, b);
+  }
+  return [...best.values()];
+}
+
+async function seriesBooks(seriesId: number): Promise<MediaSearchResult[]> {
+  const data = await gql<{ book_series: { position?: number | null; book?: HcRelatedBook | null }[] }>(
+    `query Series($sid: Int!) {
+       book_series(where: { series_id: { _eq: $sid }, position: { _is_null: false } }, order_by: { position: asc }, limit: 80) {
+         position book { ${RELATED_FIELDS} }
+       }
+     }`,
+    { sid: seriesId },
+    60 * 60 * 24,
+  );
+  // One book per whole-number position (skip novellas like 1.5), picking the most-read edition.
+  const byPosition = new Map<number, HcRelatedBook>();
+  for (const entry of data.book_series) {
+    const pos = entry.position;
+    const book = entry.book;
+    if (pos == null || !Number.isInteger(pos) || pos < 1 || !book?.image?.url) continue;
+    const cur = byPosition.get(pos);
+    if (!cur || (book.users_count ?? 0) > (cur.users_count ?? 0)) byPosition.set(pos, book);
+  }
+  return [...byPosition.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([pos, book]) => {
+      const r = normalizeBook(book);
+      return { ...r, metadata: { ...r.metadata, badge: `Book ${pos}` } };
+    });
+}
+
+async function authorBooks(authorId: number, exclude: number[]): Promise<MediaSearchResult[]> {
+  const data = await gql<{ books: HcRelatedBook[] }>(
+    `query ByAuthor($aid: Int!, $exclude: [Int!]) {
+       books(where: { contributions: { author_id: { _eq: $aid } }, id: { _nin: $exclude }, image_id: { _is_null: false } },
+             order_by: { users_count: desc }, limit: 30) { ${RELATED_FIELDS} }
+     }`,
+    { aid: authorId, exclude },
+    60 * 60 * 24,
+  );
+  return dedupeByTitle(data.books).map(normalizeBook).slice(0, 20);
+}
+
+async function similarBooks(genres: string[], exclude: number[]): Promise<MediaSearchResult[]> {
+  if (!genres.length) return [];
+  // Require the top two genres when available so "Fantasy + Romance" doesn't return any fantasy.
+  const tags = genres.slice(0, 2).map((g) => `{ cached_tags: { _contains: { Genre: [{ tag: ${JSON.stringify(g)} }] } } }`);
+  const data = await gql<{ books: HcRelatedBook[] }>(
+    `query Similar($exclude: [Int!], $since: Int!) {
+       books(where: { _and: [${tags.join(", ")}], id: { _nin: $exclude }, image_id: { _is_null: false },
+                      release_year: { _gte: $since } },
+             order_by: { users_count: desc }, limit: 40) { ${RELATED_FIELDS} }
+     }`,
+    { exclude, since: new Date().getFullYear() - 25 },
+    60 * 60 * 24,
+  );
+  return dedupeByTitle(data.books).map(normalizeBook);
+}
+
+function seriesTitle(name: string | null) {
+  if (!name) return "In This Series";
+  const bare = name.replace(/^the\s+/i, "");
+  return /\b(series|saga|trilogy|chronicles|cycle|archive)\b/i.test(bare) ? `The ${bare}` : `The ${bare} Series`;
+}
+
+/** Series, author and genre rows for a book page. Each is optional and fails independently. */
+async function relatedFor(
+  book: HcBook,
+  ctx: { seriesId: number | null; seriesName: string | null; author: { id: number; name: string } | null; genres: string[]; authorNames: string[] },
+) {
+  const [series, byAuthor, similar] = await Promise.all([
+    ctx.seriesId ? safely(() => seriesBooks(ctx.seriesId!), []) : Promise.resolve([]),
+    ctx.author ? safely(() => authorBooks(ctx.author!.id, [book.id]), []) : Promise.resolve([]),
+    safely(() => similarBooks(ctx.genres, [book.id]), []),
+  ]);
+
+  // Don't repeat a book across rows: series first, then author, then similar.
+  const seen = new Set<string>([String(book.id)]);
+  const take = (list: MediaSearchResult[], keepCurrent = false) =>
+    list.filter((b) => {
+      if (keepCurrent && b.externalId === String(book.id)) return true;
+      if (seen.has(b.externalId)) return false;
+      seen.add(b.externalId);
+      return true;
+    });
+
+  const seriesRow = take(series, true);
+  const authorRow = take(byAuthor);
+  const authorSet = new Set(ctx.authorNames.map((n) => n.toLowerCase()));
+  const similarRow = take(similar.filter((b) => !(b.metadata?.authors as string[] | undefined)?.some((a) => authorSet.has(a.toLowerCase())))).slice(0, 20);
+
+  return [
+    { title: seriesTitle(ctx.seriesName), items: seriesRow },
+    { title: `More by ${ctx.author?.name ?? ctx.authorNames[0] ?? "This Author"}`, items: authorRow },
+    { title: "You Might Also Like", items: similarRow },
+  ].filter((r) => r.items.length >= 2);
+}
+
 /* ------------------------------------------------------------------ detail */
 
 export async function getBook(id: string): Promise<MediaDetail> {
@@ -184,7 +298,8 @@ export async function getBook(id: string): Promise<MediaDetail> {
          books(where: { id: { _eq: $id } }, limit: 1) {
            id title subtitle description release_date release_year pages rating ratings_count users_count
            image { url } cached_contributors cached_tags
-           book_series { position series { name } }
+           book_series { position series { id name } }
+           contributions { contribution author { id name } }
          }
        }`,
       { id: Number(id) },
@@ -231,10 +346,20 @@ export async function getBook(id: string): Promise<MediaDetail> {
     .filter((f): f is [string, string] => Boolean(f[1]))
     .map(([label, value]) => ({ label, value }));
 
+  const primaryAuthor = b.contributions?.find((c) => !c.contribution && c.author?.id)?.author ?? null;
+  const relatedRows = await relatedFor(b, {
+    seriesId: series?.series?.id ?? null,
+    seriesName: series?.series?.name ?? null,
+    author: primaryAuthor?.id ? { id: primaryAuthor.id, name: primaryAuthor.name ?? authors[0] ?? "the Author" } : null,
+    genres,
+    authorNames: authors,
+  });
+
   return {
     ...base,
     subtitle: authors.join(", ") || null,
     genres,
+    relatedRows,
     highlights: [base.year ? String(base.year) : null, pages ? `${pages} pages` : null, seriesLabel].filter(Boolean) as string[],
     facts,
     score:

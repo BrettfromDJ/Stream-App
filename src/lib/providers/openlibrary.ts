@@ -110,6 +110,21 @@ export async function trendingBooks(): Promise<MediaSearchResult[]> {
   return data.works.filter((w) => w.cover_i).map(normalizeDoc).slice(0, 20);
 }
 
+/** The author's most-read other works. */
+async function moreByAuthor(authorId: string, excludeWorkId: string): Promise<MediaSearchResult[]> {
+  const params = new URLSearchParams({ author_key: authorId, sort: "readinglog", limit: "30", fields: SEARCH_FIELDS });
+  const data = await fetchJson<{ docs: OlSearchDoc[] }>(`${API}/search.json?${params}`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 24,
+    headers,
+    timeoutMs: 9000,
+  });
+  return data.docs
+    .map(normalizeDoc)
+    .filter((b) => b.artworkUrl && b.externalId !== excludeWorkId)
+    .slice(0, 20);
+}
+
 export async function getBook(id: string): Promise<MediaDetail> {
   if (!/^OL\d+W$/i.test(id)) throw new ProviderError("openlibrary", "not_found");
   const opts = { provider: "openlibrary" as const, revalidate: 60 * 60 * 24, headers, timeoutMs: 9000 };
@@ -123,17 +138,15 @@ export async function getBook(id: string): Promise<MediaDetail> {
     ),
   ]);
 
-  const authors = (
-    await Promise.all(
-      (work.authors ?? [])
-        .map((a) => a.author?.key)
-        .filter((k): k is string => Boolean(k))
-        .slice(0, 3)
-        .map((key) => safely(() => fetchJson<{ name?: string }>(`${API}${key}.json`, opts), {})),
-    )
-  )
-    .map((a) => a.name)
-    .filter((n): n is string => Boolean(n));
+  const authorKeys = (work.authors ?? [])
+    .map((a) => a.author?.key)
+    .filter((k): k is string => Boolean(k))
+    .slice(0, 3);
+  const [authorDocs, byAuthor] = await Promise.all([
+    Promise.all(authorKeys.map((key) => safely(() => fetchJson<{ name?: string }>(`${API}${key}.json`, opts), {}))),
+    authorKeys[0] ? safely(() => moreByAuthor(authorKeys[0].replace("/authors/", ""), id), []) : Promise.resolve([]),
+  ]);
+  const authors = authorDocs.map((a) => a.name).filter((n): n is string => Boolean(n));
 
   // Prefer an English edition that has both page count and ISBN.
   const entries = editions.entries ?? [];
@@ -183,6 +196,7 @@ export async function getBook(id: string): Promise<MediaDetail> {
     highlights: [year ? String(year) : null, pages ? `${pages} pages` : null].filter(Boolean) as string[],
     facts,
     score: avg && (ratings.summary?.count ?? 0) >= 5 ? { value: Math.round(avg * 10) / 10, max: 5, source: "Open Library" } : null,
+    relatedRows: byAuthor.length >= 2 ? [{ title: `More by ${authors[0] ?? "This Author"}`, items: byAuthor }] : [],
     metadata: { authors, pages, isbn, genres },
   };
 }

@@ -55,6 +55,8 @@ export interface MediaDetail extends MediaSearchResult {
   /** YouTube videos (trailers first). */
   videos?: MediaVideo[];
   related?: MediaSearchResult[];
+  /** Several titled "more like this" rows (e.g. series, author, similar). Takes precedence over `related`. */
+  relatedRows?: { title: string; items: MediaSearchResult[] }[];
   score?: { value: number; max: number; source: string } | null;
 }
 

@@ -217,12 +217,21 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           </section>
         )}
 
-        {detail.related && detail.related.length > 0 && (
-          <Row title="You Might Also Like">
-            {detail.related.map((r) => (
-              <MediaCard key={r.externalId} media={cardFromResult(r, index)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
-            ))}
-          </Row>
+        {(detail.relatedRows ?? (detail.related?.length ? [{ title: "You Might Also Like", items: detail.related }] : [])).map(
+          (row) => (
+            <Row key={row.title} title={row.title}>
+              {row.items.map((r) => (
+                <MediaCard
+                  key={r.externalId}
+                  media={cardFromResult(r, index)}
+                  sizes={ROW_SIZES.poster}
+                  showRating={false}
+                  showInLibrary
+                  badge={r.externalId === id ? "This book" : typeof r.metadata?.badge === "string" ? r.metadata.badge : null}
+                />
+              ))}
+            </Row>
+          ),
         )}
 
         <p className="gutter text-[12px] text-fg-3">Data from {sourceOf(type, id)}.</p>
