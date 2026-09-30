@@ -189,35 +189,6 @@ export async function getBook(id: string): Promise<MediaDetail> {
 
 /* ------------------------------------------------------------- browse */
 
-interface OlSubjectWork {
-  key: string;
-  title: string;
-  authors?: { name: string }[];
-  cover_id?: number;
-  first_publish_year?: number;
-}
-
-/** Recent, well-known books in a subject (e.g. "fantasy", "science_fiction"). */
-export async function booksBySubject(subject: string): Promise<MediaSearchResult[]> {
-  const year = new Date().getFullYear();
-  const data = await fetchJson<{ works: OlSubjectWork[] }>(
-    `${API}/subjects/${encodeURIComponent(subject)}.json?limit=30&published_in=${year - 12}-${year}`,
-    { provider: "openlibrary", revalidate: 60 * 60 * 24, headers, timeoutMs: 10000 },
-  );
-  return data.works
-    .filter((w) => w.cover_id)
-    .map((w) =>
-      normalizeDoc({
-        key: w.key,
-        title: w.title,
-        author_name: w.authors?.map((a) => a.name),
-        cover_i: w.cover_id,
-        first_publish_year: w.first_publish_year,
-      }),
-    )
-    .slice(0, 20);
-}
-
 export async function trendingToday(): Promise<MediaSearchResult[]> {
   const data = await fetchJson<{ works: OlSearchDoc[] }>(`${API}/trending/daily.json?limit=30`, {
     provider: "openlibrary",
@@ -237,4 +208,25 @@ export async function workIdForIsbn(isbn: string): Promise<string | null> {
   });
   const key = data.works?.[0]?.key;
   return key ? workId(key) : null;
+}
+
+/**
+ * Recent, widely-read books in a subject. Filters on *first* publication year (so reprints of
+ * classics don't qualify) and sorts by how many readers have shelved them.
+ */
+export async function recentBooksBySubject(subject: string): Promise<MediaSearchResult[]> {
+  const year = new Date().getFullYear();
+  const params = new URLSearchParams({
+    q: `subject:"${subject}" first_publish_year:[${year - 4} TO ${year}] language:eng`,
+    sort: "readinglog",
+    limit: "30",
+    fields: SEARCH_FIELDS,
+  });
+  const data = await fetchJson<{ docs: OlSearchDoc[] }>(`${API}/search.json?${params}`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 12,
+    headers,
+    timeoutMs: 10000,
+  });
+  return data.docs.filter((d) => d.cover_i).map(normalizeDoc).slice(0, 20);
 }

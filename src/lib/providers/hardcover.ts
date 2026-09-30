@@ -325,3 +325,30 @@ export async function bookIdForIsbn(isbn: string): Promise<string | null> {
   const id = data.editions[0]?.book_id;
   return id ? String(id) : null;
 }
+
+/* ----------------------------------------------------------- genre rows */
+
+export const BOOK_GENRES = {
+  fantasy: ["Fantasy"],
+  scifi: ["Science Fiction", "Science fiction"],
+  thriller: ["Thriller", "Mystery", "Mystery & Thriller"],
+  romance: ["Romance"],
+} as const;
+export type BookGenre = keyof typeof BOOK_GENRES;
+
+/**
+ * Most-shelved books from the last few years in each genre (one request, aliased).
+ * Filters on Hardcover's cached genre tags so classics with new editions don't crowd the rows.
+ */
+export async function genreBooks(): Promise<Record<BookGenre, MediaSearchResult[]>> {
+  const since = new Date().getFullYear() - 3;
+  const where = (tags: readonly string[]) =>
+    `{ release_year: { _gte: $since }, image_id: { _is_null: false },
+       _or: [${tags.map((t) => `{ cached_tags: { _contains: { Genre: [{ tag: ${JSON.stringify(t)} }] } } }`).join(", ")}] }`;
+  const fields = Object.entries(BOOK_GENRES)
+    .map(([key, tags]) => `${key}: books(where: ${where(tags)}, order_by: { users_count: desc }, limit: 24) { ${LIST_FIELDS} }`)
+    .join("\n");
+  const data = await gql<Record<BookGenre, HcBook[]>>(`query Genres($since: Int!) { ${fields} }`, { since }, 60 * 60 * 12);
+  const map = (list?: HcBook[]) => (list ?? []).map(normalizeBook).filter((b) => b.artworkUrl);
+  return { fantasy: map(data.fantasy), scifi: map(data.scifi), thriller: map(data.thriller), romance: map(data.romance) };
+}

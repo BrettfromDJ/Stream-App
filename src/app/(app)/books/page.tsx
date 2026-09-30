@@ -14,6 +14,7 @@ export default function BooksPage() {
   const trending = b.trending();
   const hub = b.hub();
   const charts = b.bestsellers();
+  const genres = b.genres();
   return (
     <div className="animate-fade-in">
       <Suspense fallback={<HeroSkeleton />}>
@@ -52,16 +53,16 @@ export default function BooksPage() {
             <Bestsellers charts={charts} index={2} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Fantasy" items={b.subject("fantasy")} />
+            <DiscoverRow title="Fantasy" items={genres.then((g) => g.fantasy)} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Science Fiction" items={b.subject("science_fiction")} />
+            <DiscoverRow title="Science Fiction" items={genres.then((g) => g.scifi)} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Mystery & Thrillers" items={b.subject("thrillers")} />
+            <DiscoverRow title="Mystery & Thrillers" items={genres.then((g) => g.thriller)} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Romance" items={b.subject("romance")} />
+            <DiscoverRow title="Romance" items={genres.then((g) => g.romance)} />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Most Loved of All Time" items={hub.then((h) => h.allTime)} />

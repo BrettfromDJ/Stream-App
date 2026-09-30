@@ -177,7 +177,25 @@ export const browse = {
     },
     trendingToday: () => safely(ol.trendingToday, []),
     bestsellers: () => (nyt.isNytConfigured() ? safely(nyt.bestsellers, []) : Promise.resolve([])),
-    subject: (subject: string) => safely(() => ol.booksBySubject(subject), []),
+    /** Genre rows: Hardcover's recent most-read, falling back to Open Library's recent most-read. */
+    genres: async (): Promise<Record<hardcover.BookGenre, MediaSearchResult[]>> => {
+      const hc = hardcover.isHardcoverConfigured()
+        ? await safely(hardcover.genreBooks, null)
+        : null;
+      const olSubject: Record<hardcover.BookGenre, string> = {
+        fantasy: "fantasy",
+        scifi: "science fiction",
+        thriller: "thrillers",
+        romance: "romance",
+      };
+      const keys = Object.keys(olSubject) as hardcover.BookGenre[];
+      const lists = await Promise.all(
+        keys.map((k) =>
+          hc && hc[k].length >= 8 ? hc[k] : safely(() => ol.recentBooksBySubject(olSubject[k]), hc?.[k] ?? []),
+        ),
+      );
+      return Object.fromEntries(keys.map((k, i) => [k, lists[i]])) as Record<hardcover.BookGenre, MediaSearchResult[]>;
+    },
   },
 };
 
