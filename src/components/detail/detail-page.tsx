@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { getMediaDetail, ProviderError, resolveBookIsbn } from "@/lib/providers";
 import { getLibraryIndex, getLibraryItem } from "@/lib/library/queries";
 import { cardFromItem, cardFromResult, type CardData } from "@/lib/media/card";
@@ -120,7 +121,20 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             <h1 className="mt-1 text-[30px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[44px] lg:text-[52px]">
               {detail.title}
             </h1>
-            {detail.subtitle ? <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">{detail.subtitle}</p> : null}
+            {detail.creators?.length ? (
+              <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">
+                {detail.creators.map((c, i) => (
+                  <span key={c.href}>
+                    {i > 0 && ", "}
+                    <Link href={c.href} className="text-fg/90 underline decoration-white/25 underline-offset-4 transition-colors hover:text-fg hover:decoration-white/60">
+                      {c.name}
+                    </Link>
+                  </span>
+                ))}
+              </p>
+            ) : detail.subtitle ? (
+              <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">{detail.subtitle}</p>
+            ) : null}
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-fg-2 md:text-[15px]">
               {detail.highlights.map((h, i) => (
                 <span key={h} className="inline-flex items-center gap-2">
@@ -219,7 +233,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
         {(detail.relatedRows ?? (detail.related?.length ? [{ title: "You Might Also Like", items: detail.related }] : [])).map(
           (row) => (
-            <Row key={row.title} title={row.title}>
+            <Row key={row.title} title={row.title} href={"href" in row ? row.href : undefined}>
               {row.items.map((r) => (
                 <MediaCard
                   key={r.externalId}

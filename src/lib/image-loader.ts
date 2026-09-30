@@ -26,7 +26,7 @@ export default function imageLoader({ src, width }: { src: string; width: number
   }
 
   // Open Library covers: -M is ~180px wide, -L is the full-size scan.
-  const ol = src.match(/^(https:\/\/covers\.openlibrary\.org\/b\/(?:id|isbn|olid)\/[^-]+)-[SML](\.jpg)$/);
+  const ol = src.match(/^(https:\/\/covers\.openlibrary\.org\/[ab]\/(?:id|isbn|olid)\/[^-]+)-[SML](\.jpg)$/);
   if (ol) return `${ol[1]}-${width <= 180 ? "M" : "L"}${ol[2]}`;
 
   // IGDB: https://images.igdb.com/igdb/image/upload/t_{size}/{id}.jpg

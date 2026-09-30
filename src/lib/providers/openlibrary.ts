@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
+import type { AuthorProfile, MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
 import { cleanDescription, normalizeDate, yearFrom } from "@/lib/media/format";
 import { ProviderError, fetchJson, safely } from "./http";
 
@@ -196,7 +196,13 @@ export async function getBook(id: string): Promise<MediaDetail> {
     highlights: [year ? String(year) : null, pages ? `${pages} pages` : null].filter(Boolean) as string[],
     facts,
     score: avg && (ratings.summary?.count ?? 0) >= 5 ? { value: Math.round(avg * 10) / 10, max: 5, source: "Open Library" } : null,
-    relatedRows: byAuthor.length >= 2 ? [{ title: `More by ${authors[0] ?? "This Author"}`, items: byAuthor }] : [],
+    relatedRows:
+      byAuthor.length >= 2
+        ? [{ title: `More by ${authors[0] ?? "This Author"}`, items: byAuthor, href: `/author/${authorKeys[0].replace("/authors/", "")}` }]
+        : [],
+    creators: authorDocs
+      .map((a, i) => (a.name ? { name: a.name, href: `/author/${authorKeys[i].replace("/authors/", "")}` } : null))
+      .filter((c): c is { name: string; href: string } => c !== null),
     metadata: { authors, pages, isbn, genres },
   };
 }
@@ -243,4 +249,41 @@ export async function recentBooksBySubject(subject: string): Promise<MediaSearch
     timeoutMs: 10000,
   });
   return data.docs.filter((d) => d.cover_i).map(normalizeDoc).slice(0, 20);
+}
+
+/* ------------------------------------------------------------ author page */
+
+interface OlAuthor {
+  name?: string;
+  personal_name?: string;
+  bio?: string | { value: string };
+  photos?: number[];
+  birth_date?: string;
+  death_date?: string;
+}
+
+export async function getAuthor(id: string): Promise<AuthorProfile> {
+  if (!/^OL\d+A$/i.test(id)) throw new ProviderError("openlibrary", "not_found");
+  const opts = { provider: "openlibrary" as const, revalidate: 60 * 60 * 24, headers, timeoutMs: 9000 };
+  const params = new URLSearchParams({ author_key: id, sort: "readinglog", limit: "80", fields: SEARCH_FIELDS });
+  const [author, works] = await Promise.all([
+    fetchJson<OlAuthor>(`${API}/authors/${id}.json`, opts),
+    safely(() => fetchJson<{ docs: OlSearchDoc[] }>(`${API}/search.json?${params}`, opts), { docs: [] }),
+  ]);
+  const books = works.docs.map(normalizeDoc).filter((b) => b.artworkUrl);
+  const photo = author.photos?.find((p) => p > 0);
+  const born = yearFrom(normalizeDate(author.birth_date));
+  const died = yearFrom(normalizeDate(author.death_date));
+  return {
+    id,
+    name: author.name ?? author.personal_name ?? "Unknown author",
+    bio: cleanDescription(typeof author.bio === "string" ? author.bio : author.bio?.value),
+    photoUrl: photo ? `https://covers.openlibrary.org/a/id/${photo}-L.jpg` : null,
+    lifespan: born ? `${born}–${died ?? ""}` : null,
+    bookCount: books.length,
+    popular: books.slice(0, 15),
+    series: [],
+    all: [...books].sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? "")),
+    source: "Open Library",
+  };
 }

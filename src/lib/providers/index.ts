@@ -10,6 +10,11 @@ import * as igdb from "./igdb";
 
 export { ProviderError };
 
+/** Author pages: numeric IDs are Hardcover authors; "OL…A" IDs are Open Library authors. */
+export async function getAuthor(id: string) {
+  return /^\d+$/.test(id) ? hardcover.getAuthor(id) : ol.getAuthor(id);
+}
+
 /** Single entry point for item detail, regardless of provider. */
 export async function getMediaDetail(type: MediaType, id: string): Promise<MediaDetail> {
   switch (type) {

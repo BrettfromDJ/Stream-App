@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
+import type { AuthorProfile, MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
 import { cleanDescription, formatDate, normalizeDate } from "@/lib/media/format";
 import { ProviderError, fetchJson, safely } from "./http";
 
@@ -282,7 +282,11 @@ async function relatedFor(
 
   return [
     { title: seriesTitle(ctx.seriesName), items: seriesRow },
-    { title: `More by ${ctx.author?.name ?? ctx.authorNames[0] ?? "This Author"}`, items: authorRow },
+    {
+      title: `More by ${ctx.author?.name ?? ctx.authorNames[0] ?? "This Author"}`,
+      items: authorRow,
+      href: ctx.author ? `/author/${ctx.author.id}` : undefined,
+    },
     { title: "You Might Also Like", items: similarRow },
   ].filter((r) => r.items.length >= 2);
 }
@@ -327,9 +331,10 @@ export async function getBook(id: string): Promise<MediaDetail> {
   const base = normalizeBook(b);
   const authors = authorsOf(b.cached_contributors);
   const genres = genresOf(b.cached_tags);
-  const edition = editions.editions.find((e) => e.isbn_13 || e.isbn_10);
+  const editionList = editions.editions ?? [];
+  const edition = editionList.find((e) => e.isbn_13 || e.isbn_10);
   const isbn = edition?.isbn_13 ?? edition?.isbn_10 ?? null;
-  const pages = b.pages ?? editions.editions.find((e) => e.pages)?.pages ?? null;
+  const pages = b.pages ?? editionList.find((e) => e.pages)?.pages ?? null;
   const series = b.book_series?.find((s) => s.series?.name);
   const seriesLabel = series
     ? `${series.series!.name}${series.position ? ` · Book ${Number.isInteger(series.position) ? series.position : series.position.toFixed(1)}` : ""}`
@@ -360,6 +365,10 @@ export async function getBook(id: string): Promise<MediaDetail> {
     subtitle: authors.join(", ") || null,
     genres,
     relatedRows,
+    creators: (b.contributions ?? [])
+      .filter((c) => !c.contribution && c.author?.id && c.author.name)
+      .slice(0, 3)
+      .map((c) => ({ name: c.author!.name!, href: `/author/${c.author!.id}` })),
     highlights: [base.year ? String(base.year) : null, pages ? `${pages} pages` : null, seriesLabel].filter(Boolean) as string[],
     facts,
     score:
@@ -476,4 +485,92 @@ export async function genreBooks(): Promise<Record<BookGenre, MediaSearchResult[
   const data = await gql<Record<BookGenre, HcBook[]>>(`query Genres($since: Int!) { ${fields} }`, { since }, 60 * 60 * 12);
   const map = (list?: HcBook[]) => (list ?? []).map(normalizeBook).filter((b) => b.artworkUrl);
   return { fantasy: map(data.fantasy), scifi: map(data.scifi), thriller: map(data.thriller), romance: map(data.romance) };
+}
+
+/* ------------------------------------------------------------ author page */
+
+interface HcAuthorBook extends HcRelatedBook {
+  book_series?: { position?: number | null; series?: { id?: number; name?: string } | null }[];
+}
+
+export async function getAuthor(id: string): Promise<AuthorProfile> {
+  if (!/^\d+$/.test(id)) throw new ProviderError("hardcover", "not_found");
+  const aid = Number(id);
+  const day = 60 * 60 * 24;
+  const [core, extra] = await Promise.all([
+    gql<{ authors: { id: number; name: string }[]; books: HcAuthorBook[] }>(
+      `query Author($id: Int!) {
+         authors(where: { id: { _eq: $id } }, limit: 1) { id name }
+         books(where: { contributions: { author_id: { _eq: $id }, contribution: { _is_null: true } }, image_id: { _is_null: false } },
+               order_by: { users_count: desc }, limit: 120) {
+           ${RELATED_FIELDS} book_series { position series { id name } }
+         }
+       }`,
+      { id: aid },
+      day,
+    ),
+    // Optional profile fields in their own request so a schema difference can't break the page.
+    safely(
+      () =>
+        gql<{ authors: { bio?: string | null; born_year?: number | null; death_year?: number | null; image?: HcImage | null }[] }>(
+          `query AuthorProfile($id: Int!) { authors(where: { id: { _eq: $id } }, limit: 1) { bio born_year death_year image { url } } }`,
+          { id: aid },
+          day,
+        ),
+      { authors: [] },
+    ),
+  ]);
+
+  const author = core.authors[0];
+  if (!author) throw new ProviderError("hardcover", "not_found");
+  const profile = extra.authors[0] ?? {};
+
+  const books = dedupeByTitle(core.books);
+  const popular = books.slice(0, 15).map(normalizeBook);
+
+  // Group into series (whole-number positions, most-read edition per position).
+  const series = new Map<number, { name: string; readers: number; byPos: Map<number, HcAuthorBook> }>();
+  for (const b of core.books) {
+    for (const s of b.book_series ?? []) {
+      const pos = s.position;
+      if (!s.series?.id || !s.series.name || pos == null || !Number.isInteger(pos) || pos < 1) continue;
+      const entry = series.get(s.series.id) ?? { name: s.series.name, readers: 0, byPos: new Map() };
+      const cur = entry.byPos.get(pos);
+      if (!cur || (b.users_count ?? 0) > (cur.users_count ?? 0)) entry.byPos.set(pos, b);
+      entry.readers += b.users_count ?? 0;
+      series.set(s.series.id, entry);
+    }
+  }
+  const seriesRows = [...series.values()]
+    .filter((s) => s.byPos.size >= 2)
+    .sort((a, b) => b.readers - a.readers)
+    .slice(0, 6)
+    .map((s) => ({
+      title: seriesTitle(s.name),
+      items: [...s.byPos.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([pos, book]) => {
+          const r = normalizeBook(book);
+          return { ...r, metadata: { ...r.metadata, badge: `Book ${pos}` } };
+        }),
+    }));
+
+  const all = books
+    .map(normalizeBook)
+    .sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
+
+  const born = profile.born_year;
+  const died = profile.death_year;
+  return {
+    id,
+    name: author.name,
+    bio: cleanDescription(profile.bio),
+    photoUrl: https(profile.image?.url),
+    lifespan: born ? `${born}–${died ?? ""}` : null,
+    bookCount: books.length,
+    popular,
+    series: seriesRows,
+    all,
+    source: "Hardcover",
+  };
 }

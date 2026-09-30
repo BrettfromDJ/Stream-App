@@ -56,7 +56,9 @@ export interface MediaDetail extends MediaSearchResult {
   videos?: MediaVideo[];
   related?: MediaSearchResult[];
   /** Several titled "more like this" rows (e.g. series, author, similar). Takes precedence over `related`. */
-  relatedRows?: { title: string; items: MediaSearchResult[] }[];
+  relatedRows?: { title: string; items: MediaSearchResult[]; href?: string }[];
+  /** Linkable people shown in the header (e.g. book authors → author pages). */
+  creators?: { name: string; href: string }[];
   score?: { value: number; max: number; source: string } | null;
 }
 
@@ -112,4 +114,19 @@ export interface CardMedia {
   artworkUrl?: string | null;
   status?: LibraryStatus | null;
   rating?: number | null;
+}
+
+/** An author page. */
+export interface AuthorProfile {
+  id: string;
+  name: string;
+  bio: string | null;
+  photoUrl: string | null;
+  /** e.g. "1947–" or "1892–1973" */
+  lifespan: string | null;
+  bookCount: number;
+  popular: MediaSearchResult[];
+  series: { title: string; items: MediaSearchResult[] }[];
+  all: MediaSearchResult[];
+  source: "Hardcover" | "Open Library";
 }
