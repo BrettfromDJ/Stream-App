@@ -4,33 +4,11 @@ import Link from "next/link";
 import type { CardData } from "@/lib/media/card";
 import { mediaHref } from "@/lib/media/labels";
 import { statusLabel } from "@/lib/media/status";
-import type { MediaProgress } from "@/lib/media/types";
 import { useQuickActions } from "@/components/library/quick-actions";
+import { progressLabel, progressPercent } from "@/lib/media/progress";
 import { cn } from "@/lib/utils";
 import { Artwork } from "./artwork";
 import { useLongPress } from "./use-long-press";
-
-export function progressLabel(p?: MediaProgress | null): string | null {
-  if (!p) return null;
-  switch (p.kind) {
-    case "episode":
-      if (p.done) return "All caught up";
-      return p.watchedCount ? `Next: S${p.season} E${p.episode}` : `Start with S${p.season} E${p.episode}`;
-    case "page":
-      return p.totalPages ? `Page ${p.page} of ${p.totalPages}` : `Page ${p.page}`;
-    case "hours":
-      return `${p.hours} h played`;
-    case "percent":
-      return `${Math.round(p.percent)}%`;
-  }
-}
-
-function progressPercent(p?: MediaProgress | null): number | null {
-  if (!p) return null;
-  if (p.percent != null) return p.percent;
-  if (p.kind === "page" && p.totalPages) return (p.page / p.totalPages) * 100;
-  return null;
-}
 
 const SIZES = "(min-width: 1024px) 420px, (min-width: 768px) 46vw, 82vw";
 

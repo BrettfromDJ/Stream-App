@@ -27,6 +27,12 @@
   --animate-shimmer: shimmer 1.6s ease-in-out infinite;
   --animate-fade-in: fade-in 0.35s var(--ease-out-soft) both;
 
+  --animate-marquee: marquee 120s linear infinite;
+
+  @keyframes marquee {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(-50%, 0, 0); }
+  }
   @keyframes shimmer {
     0% { background-position: 150% 0; }
     100% { background-position: -50% 0; }
