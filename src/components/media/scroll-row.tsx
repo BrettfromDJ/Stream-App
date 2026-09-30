@@ -37,7 +37,7 @@ export function ScrollRow({ children, size }: { children: ReactNode; size: "post
         className={cn(
           "no-scrollbar gutter flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth pb-2",
           size === "wide" ? "gap-3 md:gap-4" : size === "ranked" ? "gap-1 md:gap-2" : "gap-2.5 md:gap-3.5",
-          "scroll-px-[max(env(safe-area-inset-left),1.25rem)] md:scroll-px-8 xl:scroll-px-11",
+          "snap-gutter",
         )}
       >
         {Children.map(children, (child) =>

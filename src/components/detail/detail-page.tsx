@@ -225,7 +225,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         {detail.screenshots && detail.screenshots.length > 0 && (
           <section aria-label="Screenshots">
             <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Screenshots</h2>
-            <div className="no-scrollbar gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+            <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
               {detail.screenshots.map((src, i) => (
                 <div key={src} className="relative aspect-video w-[78vw] shrink-0 snap-start overflow-hidden rounded-[14px] bg-elevated-2 md:w-[420px]">
                   <Image src={src} alt={`Screenshot ${i + 1}`} fill sizes="(min-width: 768px) 420px, 78vw" className="object-cover" />

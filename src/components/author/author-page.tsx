@@ -15,6 +15,7 @@ async function load(id: string): Promise<AuthorProfile | null> {
     return await getAuthor(id);
   } catch (err) {
     if (err instanceof ProviderError && err.kind === "not_found") notFound();
+    console.error("[author page]", id, (err as Error)?.message ?? err);
     return null;
   }
 }

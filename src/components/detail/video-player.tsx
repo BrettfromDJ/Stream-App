@@ -55,7 +55,7 @@ export function VideoRow({ videos }: { videos: MediaVideo[] }) {
   return (
     <section aria-label="Videos">
       <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Videos</h2>
-      <div className="no-scrollbar gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
+      <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
         {videos.map((v) => (
           <button
             key={v.youtubeId}

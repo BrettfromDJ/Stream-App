@@ -152,6 +152,17 @@
   }
 }
 
+/* Snap scrollers: keep snapped items aligned with the page gutter instead of the screen edge. */
+@utility snap-gutter {
+  scroll-padding-inline: max(env(safe-area-inset-left), 1.25rem);
+  @media (width >= 48rem) {
+    scroll-padding-inline: 2rem;
+  }
+  @media (width >= 80rem) {
+    scroll-padding-inline: 2.75rem;
+  }
+}
+
 /* Clearance for the floating bottom nav on mobile. */
 @utility pb-nav {
   padding-bottom: calc(env(safe-area-inset-bottom) + 6.5rem);

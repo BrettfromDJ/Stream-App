@@ -87,12 +87,15 @@ interface HcBook {
 
 /* ---------------------------------------------------------------- mapping */
 
+/** Primary authorship: Hardcover leaves `contribution` empty (or "Author") for the writer. */
+const isPrimary = (contribution?: string | null) => !contribution || /^author$/i.test(contribution.trim());
+
 const https = (url?: string | null) => (url && url.startsWith("https://") ? url : null);
 
 function authorsOf(contributors?: HcContributor[] | null) {
   // Primary authors have no contribution label ("Translator", "Illustrator"…).
   const all = contributors ?? [];
-  const primary = all.filter((c) => !c.contribution);
+  const primary = all.filter((c) => isPrimary(c.contribution));
   return (primary.length ? primary : all).map((c) => c.author?.name).filter((n): n is string => Boolean(n)).slice(0, 3);
 }
 
@@ -351,7 +354,7 @@ export async function getBook(id: string): Promise<MediaDetail> {
     .filter((f): f is [string, string] => Boolean(f[1]))
     .map(([label, value]) => ({ label, value }));
 
-  const primaryAuthor = b.contributions?.find((c) => !c.contribution && c.author?.id)?.author ?? null;
+  const primaryAuthor = b.contributions?.find((c) => isPrimary(c.contribution) && c.author?.id)?.author ?? null;
   const relatedRows = await relatedFor(b, {
     seriesId: series?.series?.id ?? null,
     seriesName: series?.series?.name ?? null,
@@ -366,7 +369,7 @@ export async function getBook(id: string): Promise<MediaDetail> {
     genres,
     relatedRows,
     creators: (b.contributions ?? [])
-      .filter((c) => !c.contribution && c.author?.id && c.author.name)
+      .filter((c) => isPrimary(c.contribution) && c.author?.id && c.author.name)
       .slice(0, 3)
       .map((c) => ({ name: c.author!.name!, href: `/author/${c.author!.id}` })),
     highlights: [base.year ? String(base.year) : null, pages ? `${pages} pages` : null, seriesLabel].filter(Boolean) as string[],
@@ -493,22 +496,40 @@ interface HcAuthorBook extends HcRelatedBook {
   book_series?: { position?: number | null; series?: { id?: number; name?: string } | null }[];
 }
 
+async function authorCore(aid: number) {
+  const day = 60 * 60 * 24;
+  // Try progressively simpler queries so one unsupported filter/field can't break the page.
+  const attempts = [
+    `authors(where: { id: { _eq: $id } }, limit: 1) { id name }
+     books(where: { contributions: { author_id: { _eq: $id } }, image_id: { _is_null: false } },
+           order_by: { users_count: desc }, limit: 100) {
+       ${RELATED_FIELDS} book_series { position series { id name } } contributions { contribution author { id name } }
+     }`,
+    `authors(where: { id: { _eq: $id } }, limit: 1) { id name }
+     books(where: { contributions: { author_id: { _eq: $id } } }, order_by: { users_count: desc }, limit: 100) { ${RELATED_FIELDS} }`,
+  ];
+  let lastError: unknown;
+  for (const body of attempts) {
+    try {
+      return await gql<{ authors: { id: number; name: string }[]; books: (HcAuthorBook & { contributions?: HcBook["contributions"] })[] }>(
+        `query Author($id: Int!) { ${body} }`,
+        { id: aid },
+        day,
+      );
+    } catch (err) {
+      lastError = err;
+      console.error("[author] Hardcover query failed:", (err as Error).message);
+    }
+  }
+  throw lastError;
+}
+
 export async function getAuthor(id: string): Promise<AuthorProfile> {
   if (!/^\d+$/.test(id)) throw new ProviderError("hardcover", "not_found");
   const aid = Number(id);
   const day = 60 * 60 * 24;
   const [core, extra] = await Promise.all([
-    gql<{ authors: { id: number; name: string }[]; books: HcAuthorBook[] }>(
-      `query Author($id: Int!) {
-         authors(where: { id: { _eq: $id } }, limit: 1) { id name }
-         books(where: { contributions: { author_id: { _eq: $id }, contribution: { _is_null: true } }, image_id: { _is_null: false } },
-               order_by: { users_count: desc }, limit: 120) {
-           ${RELATED_FIELDS} book_series { position series { id name } }
-         }
-       }`,
-      { id: aid },
-      day,
-    ),
+    authorCore(aid),
     // Optional profile fields in their own request so a schema difference can't break the page.
     safely(
       () =>
@@ -521,12 +542,20 @@ export async function getAuthor(id: string): Promise<AuthorProfile> {
     ),
   ]);
 
+  // Skip books where this person only translated/narrated/illustrated.
+  core.books = core.books.filter(
+    (b) => !b.contributions || b.contributions.some((c) => c.author?.id === aid && isPrimary(c.contribution)),
+  );
+  const nameFromBooks = core.books
+    .flatMap((b) => b.contributions ?? [])
+    .find((c) => c.author?.id === aid && c.author.name)?.author?.name;
+  if (!core.authors[0] && nameFromBooks) core.authors = [{ id: aid, name: nameFromBooks }];
   const author = core.authors[0];
   if (!author) throw new ProviderError("hardcover", "not_found");
   const profile = extra.authors[0] ?? {};
 
   const books = dedupeByTitle(core.books);
-  const popular = books.slice(0, 15).map(normalizeBook);
+  const popular = books.map(normalizeBook).filter((b) => b.artworkUrl).slice(0, 15);
 
   // Group into series (whole-number positions, most-read edition per position).
   const series = new Map<number, { name: string; readers: number; byPos: Map<number, HcAuthorBook> }>();
@@ -557,6 +586,7 @@ export async function getAuthor(id: string): Promise<AuthorProfile> {
 
   const all = books
     .map(normalizeBook)
+    .filter((b) => b.artworkUrl)
     .sort((a, b) => (b.releaseDate ?? "").localeCompare(a.releaseDate ?? ""));
 
   const born = profile.born_year;
