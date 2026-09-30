@@ -31,6 +31,8 @@ export interface MediaPerson {
   name: string;
   role?: string | null;
   imageUrl?: string | null;
+  /** Their person page, when the provider has one. */
+  href?: string | null;
 }
 
 export interface MediaVideo {
@@ -72,6 +74,8 @@ export interface MediaDetail extends MediaSearchResult {
   watch?: WatchAvailability | null;
   /** Linkable people shown in the header (e.g. book authors → author pages). */
   creators?: { name: string; href: string }[];
+  /** Shown before the creator links, e.g. "Directed by". */
+  creatorsLabel?: string;
   score?: { value: number; max: number; source: string } | null;
 }
 
@@ -149,6 +153,24 @@ export interface CardMedia {
 }
 
 /** An author page. */
+/** A director, creator or actor (TMDB). */
+export interface PersonProfile {
+  id: string;
+  name: string;
+  bio: string | null;
+  photoUrl: string | null;
+  /** e.g. "Directing", "Acting" */
+  knownFor: string | null;
+  /** e.g. "Born 1970 · London, England" */
+  lifespan: string | null;
+  birthplace: string | null;
+  /** Most popular work in their main field. */
+  popular: MediaSearchResult[];
+  /** "Directed", "Created", "Written", "Acting" — newest first. */
+  sections: { title: string; items: MediaSearchResult[] }[];
+  credits: number;
+}
+
 export interface AuthorProfile {
   id: string;
   name: string;

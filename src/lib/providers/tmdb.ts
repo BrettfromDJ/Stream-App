@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, SeasonDetail, SeasonSummary, WatchAvailability, WatchProvider } from "@/lib/media/types";
+import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, PersonProfile, SeasonDetail, SeasonSummary, WatchAvailability, WatchProvider } from "@/lib/media/types";
 import { formatDate, formatRuntime, yearFrom } from "@/lib/media/format";
 import { ProviderError, fetchJson } from "./http";
 
@@ -33,6 +33,7 @@ interface TmdbPaged<T> {
 }
 
 interface TmdbCast {
+  id: number;
   name: string;
   character?: string;
   profile_path?: string | null;
@@ -49,7 +50,7 @@ interface TmdbDetailCommon {
   status?: string;
   tagline?: string;
   original_language?: string;
-  credits?: { cast?: TmdbCast[]; crew?: { job: string; name: string }[] };
+  credits?: { cast?: TmdbCast[]; crew?: { id: number; job: string; name: string }[] };
   recommendations?: TmdbPaged<TmdbListItem>;
   similar?: TmdbPaged<TmdbListItem>;
   videos?: { results: TmdbVideo[] };
@@ -135,7 +136,7 @@ interface TmdbTvDetail extends TmdbDetailCommon {
   episode_run_time?: number[];
   in_production?: boolean;
   networks?: { name: string }[];
-  created_by?: { name: string }[];
+  created_by?: { id: number; name: string }[];
   next_episode_to_air?: TmdbEpisodeRef | null;
   last_episode_to_air?: TmdbEpisodeRef | null;
   seasons?: { season_number: number; name?: string; episode_count?: number; air_date?: string | null; poster_path?: string | null }[];
@@ -239,11 +240,17 @@ export async function airingTv() {
 
 /* ------------------------------------------------------------------ detail */
 
+function uniqueById<T extends { id: number }>(list: T[]) {
+  const seen = new Set<number>();
+  return list.filter((x) => !seen.has(x.id) && seen.add(x.id));
+}
+
 function castOf(credits: TmdbDetailCommon["credits"]) {
   return (credits?.cast ?? []).slice(0, 15).map((c) => ({
     name: c.name,
     role: c.character || null,
     imageUrl: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
+    href: c.id ? `/person/${c.id}` : null,
   }));
 }
 
@@ -268,7 +275,8 @@ export async function getMovie(id: string): Promise<MediaDetail> {
     60 * 60 * 24,
   );
   const base = normalize({ ...d, id: d.id }, "movie");
-  const director = d.credits?.crew?.find((c) => c.job === "Director")?.name ?? null;
+  const directors = uniqueById(d.credits?.crew?.filter((c) => c.job === "Director") ?? []);
+  const director = directors[0]?.name ?? null;
   const certification =
     d.release_dates?.results
       .find((r) => r.iso_3166_1 === "US")
@@ -279,6 +287,8 @@ export async function getMovie(id: string): Promise<MediaDetail> {
   return {
     ...base,
     subtitle: director ? `Directed by ${director}` : null,
+    creators: directors.slice(0, 3).map((p) => ({ name: p.name, href: `/person/${p.id}` })),
+    creatorsLabel: "Directed by",
     genres: d.genres?.map((g) => g.name) ?? [],
     highlights: [base.year ? String(base.year) : null, runtime, certification].filter(Boolean) as string[],
     facts: facts([
@@ -316,6 +326,9 @@ export async function getTv(id: string): Promise<MediaDetail> {
   return {
     ...base,
     subtitle: network,
+    ...(d.created_by?.length
+      ? { creators: d.created_by.slice(0, 3).map((p) => ({ name: p.name, href: `/person/${p.id}` })), creatorsLabel: "Created by" }
+      : {}),
     genres: d.genres?.map((g) => g.name) ?? [],
     highlights: [
       span,
@@ -542,4 +555,95 @@ export async function upcomingTv() {
     with_original_language: "en",
   });
   return normalizeList(data.results, "tv");
+}
+
+/* ------------------------------------------------------------------ people */
+
+interface TmdbPersonCredit extends TmdbListItem {
+  media_type: "movie" | "tv";
+  character?: string;
+  job?: string;
+  department?: string;
+  vote_count?: number;
+  episode_count?: number;
+}
+
+interface TmdbPerson {
+  id: number;
+  name: string;
+  biography?: string;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+  profile_path?: string | null;
+  known_for_department?: string | null;
+  combined_credits?: { cast?: TmdbPersonCredit[]; crew?: TmdbPersonCredit[] };
+}
+
+// Talk shows, news, awards and "Self" appearances aren't really part of someone's body of work.
+const NOT_WORK_GENRES = new Set([10767, 10763, 99]);
+const isSelf = (c: TmdbPersonCredit) => /\b(self|himself|herself|themselves|narrator \(voice\))\b/i.test(c.character ?? "");
+
+function creditList(list: TmdbPersonCredit[]): MediaSearchResult[] {
+  const seen = new Set<string>();
+  return list
+    .filter((c) => (c.media_type === "movie" || c.media_type === "tv") && c.poster_path)
+    .filter((c) => !c.genre_ids?.some((g) => NOT_WORK_GENRES.has(g)))
+    .filter((c) => {
+      const key = `${c.media_type}:${c.id}`;
+      return !seen.has(key) && seen.add(key);
+    })
+    .map((c) => {
+      const item = normalize(c, c.media_type);
+      const role = c.character || (c.job && c.job !== "Director" ? c.job : null);
+      return { ...item, metadata: { ...item.metadata, voteCount: c.vote_count ?? 0, ...(role ? { role } : {}) } };
+    });
+}
+
+const newestFirst = (a: MediaSearchResult, b: MediaSearchResult) =>
+  (b.releaseDate || "9999").localeCompare(a.releaseDate || "9999");
+const byVotes = (a: MediaSearchResult, b: MediaSearchResult) => Number(b.metadata?.voteCount ?? 0) - Number(a.metadata?.voteCount ?? 0);
+
+export async function getPerson(id: string): Promise<PersonProfile> {
+  if (!/^\d+$/.test(id)) throw new ProviderError("tmdb", "not_found");
+  const p = await tmdb<TmdbPerson>(`/person/${id}`, { append_to_response: "combined_credits" }, 60 * 60 * 24);
+  const cast = (p.combined_credits?.cast ?? []).filter((c) => !isSelf(c));
+  const crew = p.combined_credits?.crew ?? [];
+
+  const directed = creditList(crew.filter((c) => c.job === "Director"));
+  const created = creditList(crew.filter((c) => c.job === "Creator"));
+  const written = creditList(crew.filter((c) => c.department === "Writing" && c.job !== "Creator"));
+  const acting = creditList(cast);
+
+  const behindCamera = p.known_for_department && p.known_for_department !== "Acting";
+  const main = behindCamera ? [...directed, ...created] : acting;
+  const isSecondary = (title: string) => (behindCamera ? title === "Acting" : title !== "Filmography");
+  const sections = [
+    { title: "Directed", items: directed },
+    { title: "Created", items: created },
+    { title: behindCamera ? "Acting" : "Filmography", items: acting },
+    { title: "Written", items: written },
+  ]
+    .filter((s) => s.items.length > 0)
+    // Their main field leads (the sort is stable, so the order above holds otherwise).
+    .sort((a, b) => Number(isSecondary(a.title)) - Number(isSecondary(b.title)))
+    .map((s) => ({ ...s, items: [...s.items].sort(newestFirst).slice(0, 60) }));
+
+  const born = yearFrom(p.birthday);
+  const died = yearFrom(p.deathday);
+  const lifespan = born ? (died ? `${born}–${died}` : `Born ${born}`) : null;
+  const all = new Set([...directed, ...created, ...written, ...acting].map((i) => `${i.type}:${i.externalId}`));
+
+  return {
+    id: String(p.id),
+    name: p.name,
+    bio: p.biography?.trim() || null,
+    photoUrl: image(p.profile_path),
+    knownFor: p.known_for_department ?? null,
+    lifespan,
+    birthplace: p.place_of_birth ?? null,
+    popular: [...(main.length ? main : acting)].sort(byVotes).slice(0, 16),
+    sections,
+    credits: all.size,
+  };
 }

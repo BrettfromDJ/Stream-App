@@ -14,6 +14,11 @@ export async function getSeason(showId: string, season: number) {
   return tmdb.getSeason(showId, season);
 }
 
+/** Director, creator and actor pages (TMDB person IDs). */
+export async function getPerson(id: string) {
+  return tmdb.getPerson(id);
+}
+
 /** Author pages: numeric IDs are Hardcover authors; "OL…A" IDs are Open Library authors. */
 export async function getAuthor(id: string) {
   return /^\d+$/.test(id) ? hardcover.getAuthor(id) : ol.getAuthor(id);

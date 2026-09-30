@@ -172,6 +172,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             </h1>
             {detail.creators?.length ? (
               <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">
+                {detail.creatorsLabel && <span>{detail.creatorsLabel} </span>}
                 {detail.creators.map((c, i) => (
                   <span key={c.href}>
                     {i > 0 && ", "}
@@ -282,17 +283,17 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Cast</h2>
             <div className="no-scrollbar gutter flex gap-4 overflow-x-auto pb-1">
               {detail.cast.map((p) => (
-                <div key={`${p.name}-${p.role}`} className="w-[84px] shrink-0 text-center md:w-[96px]">
-                  <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-full bg-elevated-2">
+                <PersonLink key={`${p.name}-${p.role}`} href={p.href} className="group w-[84px] shrink-0 text-center md:w-[96px]">
+                  <div className="relative mx-auto aspect-square w-full overflow-hidden rounded-full bg-elevated-2 transition-transform group-active:scale-95">
                     {p.imageUrl ? (
                       <Image src={p.imageUrl} alt={p.name} fill sizes="96px" className="object-cover" />
                     ) : (
                       <span className="grid size-full place-items-center text-[22px] font-semibold text-fg-3">{p.name.charAt(0)}</span>
                     )}
                   </div>
-                  <p className="mt-2 line-clamp-2 text-[12.5px] leading-tight font-medium">{p.name}</p>
+                  <p className="mt-2 line-clamp-2 text-[12.5px] leading-tight font-medium group-hover:underline group-hover:decoration-white/30 group-hover:underline-offset-2">{p.name}</p>
                   {p.role && <p className="mt-0.5 line-clamp-2 text-[11.5px] leading-tight text-fg-3">{p.role}</p>}
-                </div>
+                </PersonLink>
               ))}
             </div>
           </section>
@@ -360,5 +361,15 @@ function Unavailable({ type, id }: { type: MediaType; id: string }) {
         </p>
       </div>
     </div>
+  );
+}
+
+function PersonLink({ href, className, children }: { href?: string | null; className: string; children: React.ReactNode }) {
+  return href ? (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  ) : (
+    <div className={className}>{children}</div>
   );
 }
