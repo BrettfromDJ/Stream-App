@@ -287,3 +287,32 @@ export async function getAuthor(id: string): Promise<AuthorProfile> {
     source: "Open Library",
   };
 }
+
+/* --------------------------------------------------------------- explore */
+
+export async function exploreBooks(q: {
+  subject?: string;
+  yearRange?: [number, number] | null;
+  pages?: [number, number] | null;
+  sort: "popular" | "top" | "new";
+  page: number;
+}) {
+  const terms = ["language:eng"];
+  if (q.subject) terms.push(`subject:"${q.subject}"`);
+  if (q.yearRange) terms.push(`first_publish_year:[${q.yearRange[0]} TO ${q.yearRange[1]}]`);
+  if (q.pages) terms.push(`number_of_pages_median:[${q.pages[0]} TO ${q.pages[1]}]`);
+  const params = new URLSearchParams({
+    q: terms.join(" "),
+    sort: q.sort === "top" ? "rating" : q.sort === "new" ? "new" : "readinglog",
+    limit: "30",
+    page: String(q.page),
+    fields: SEARCH_FIELDS,
+  });
+  const data = await fetchJson<{ docs: OlSearchDoc[] }>(`${API}/search.json?${params}`, {
+    provider: "openlibrary",
+    revalidate: 60 * 60 * 6,
+    headers,
+    timeoutMs: 10000,
+  });
+  return { items: data.docs.filter((d) => d.cover_i).map(normalizeDoc), hasMore: data.docs.length === 30 };
+}

@@ -6,6 +6,10 @@ import { Hero } from "@/components/discover/hero";
 import { HeroSkeleton } from "@/components/discover/hero-carousel";
 import { Lazy, Rows } from "@/components/discover/sections";
 import { favoriteOf, notInLibrary } from "@/components/discover/personal";
+import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
+import { CollectionRow } from "@/components/explore/collection-row";
+import { exploreHref } from "@/lib/discover/taxonomy";
+
 
 export const metadata: Metadata = { title: "Games" };
 
@@ -37,6 +41,7 @@ export default function GamesPage() {
           <Lazy>
             <DiscoverRow title="Most Played on Steam" items={steam.then((s) => s.mostPlayed)} />
           </Lazy>
+          <GenreTiles title="Browse by Genre" tiles={genreTilesFor("game")} allHref={exploreHref({ type: "game" })} />
           <Lazy>
             <DiscoverRow title="Popular Right Now" items={g.popularNow()} />
           </Lazy>
@@ -44,7 +49,7 @@ export default function GamesPage() {
             <BecauseYouLoved />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Just Released" items={hub.then((h) => h.justReleased)} />
+            <DiscoverRow title="Just Released" items={hub.then((h) => h.justReleased)} href={exploreHref({ type: "game", sort: "new" })} />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Popular New Releases on Steam" items={steam.then((s) => s.newReleases)} />
@@ -52,8 +57,15 @@ export default function GamesPage() {
           <Lazy>
             <DiscoverRow title="Top 10 This Year" items={hub.then((h) => h.topThisYear)} variant="ranked" />
           </Lazy>
+          <MoodTiles title="What Are You in the Mood For?" tiles={moodTilesFor(["game"])} />
+          <Lazy>
+            <CollectionRow type="game" preset="weekend" />
+          </Lazy>
           <Lazy>
             <DiscoverRow title="Steam Deals" items={steam.then((s) => s.deals)} />
+          </Lazy>
+          <Lazy>
+            <CollectionRow type="game" preset="hidden-gems" />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Most Anticipated" items={hub.then((h) => h.anticipated)} dates />
@@ -62,16 +74,16 @@ export default function GamesPage() {
             <DiscoverRow title="Coming Soon on Steam" items={steam.then((s) => s.comingSoon)} dates />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Great Recent RPGs" items={hub.then((h) => h.rpg)} />
+            <DiscoverRow title="Great Recent RPGs" items={hub.then((h) => h.rpg)} href={exploreHref({ type: "game", genre: "rpg", decade: "2020s", sort: "top" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Indie Standouts" items={hub.then((h) => h.indie)} />
+            <DiscoverRow title="Indie Standouts" items={hub.then((h) => h.indie)} href={exploreHref({ type: "game", genre: "indie", decade: "2020s", sort: "top" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Shooters" items={hub.then((h) => h.shooter)} />
+            <DiscoverRow title="Shooters" items={hub.then((h) => h.shooter)} href={exploreHref({ type: "game", genre: "shooter", decade: "2020s", sort: "top" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="All-Time Greats" items={hub.then((h) => h.allTime)} />
+            <DiscoverRow title="All-Time Greats" items={hub.then((h) => h.allTime)} href={exploreHref({ type: "game", sort: "top" })} />
           </Lazy>
         </Rows>
       </div>

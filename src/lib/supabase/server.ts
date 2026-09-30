@@ -23,6 +23,8 @@ export async function createClient() {
 export interface SessionUser {
   id: string;
   email: string | null;
+  /** TMDB watch-provider IDs the user subscribes to (stored in auth user metadata). */
+  services: number[];
 }
 
 /** Verified current user (deduped per request). Null when signed out or in preview mode. */
@@ -31,5 +33,7 @@ export const getUser = cache(async (): Promise<SessionUser | null> => {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getClaims();
   if (error || !data?.claims?.sub) return null;
-  return { id: data.claims.sub, email: (data.claims.email as string | undefined) ?? null };
+  const meta = (data.claims.user_metadata ?? {}) as { services?: unknown };
+  const services = Array.isArray(meta.services) ? meta.services.filter((n): n is number => Number.isInteger(n)).slice(0, 30) : [];
+  return { id: data.claims.sub, email: (data.claims.email as string | undefined) ?? null, services };
 });

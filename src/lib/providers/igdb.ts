@@ -508,3 +508,49 @@ export async function gamesForSteamApps(appIds: string[]): Promise<Map<string, M
   }
   return out;
 }
+
+/* --------------------------------------------------------------- explore */
+
+export const EXPLORE_PAGE = 30;
+
+/** One page of games for a hand-built where/sort. */
+export async function exploreGames(where: string[], sort: string, page: number) {
+  const offset = (page - 1) * EXPLORE_PAGE;
+  const data = await igdb<IgdbGame[]>(
+    "games",
+    `${LIST_FIELDS} where cover != null & version_parent = null${where.map((w) => ` & (${w})`).join("")};
+     sort ${sort}; limit ${EXPLORE_PAGE}; offset ${offset};`,
+    60 * 60 * 6,
+  );
+  return { items: data.map(normalize), hasMore: data.length === EXPLORE_PAGE };
+}
+
+/** Games you can finish quickly (IGDB time-to-beat), most-reported first, with optional extra filters. */
+export async function quickGames(where: string[], page: number, maxHours = 12) {
+  const offset = (page - 1) * EXPLORE_PAGE;
+  const times = await igdb<{ game_id: number; normally?: number }[]>(
+    "game_time_to_beats",
+    `fields game_id, normally; where normally > 3600 & normally <= ${maxHours * 3600} & count >= 8;
+     sort count desc; limit 80; offset ${offset * 2};`,
+    60 * 60 * 12,
+  );
+  const ids = times.map((t) => t.game_id).filter(Boolean);
+  if (!ids.length) return { items: [], hasMore: false };
+  const games = await igdb<IgdbGame[]>(
+    "games",
+    `${LIST_FIELDS} where id = (${ids.join(",")}) & cover != null & version_parent = null${where.map((w) => ` & (${w})`).join("")};
+     limit ${ids.length};`,
+    60 * 60 * 12,
+  );
+  const hours = new Map(times.map((t) => [t.game_id, t.normally ?? 0]));
+  const order = new Map(ids.map((id, i) => [id, i]));
+  const items = games
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0))
+    .slice(0, EXPLORE_PAGE)
+    .map((g) => {
+      const r = normalize(g);
+      const h = Math.round((hours.get(g.id) ?? 0) / 3600);
+      return h ? { ...r, metadata: { ...r.metadata, badge: `~${h} h` } } : r;
+    });
+  return { items, hasMore: times.length === 80 };
+}

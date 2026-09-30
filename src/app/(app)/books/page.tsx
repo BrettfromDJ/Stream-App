@@ -5,6 +5,10 @@ import { DiscoverRow } from "@/components/discover/discover-row";
 import { Hero } from "@/components/discover/hero";
 import { HeroSkeleton } from "@/components/discover/hero-carousel";
 import { Lazy, Rows } from "@/components/discover/sections";
+import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
+import { CollectionRow } from "@/components/explore/collection-row";
+import { exploreHref } from "@/lib/discover/taxonomy";
+
 
 export const metadata: Metadata = { title: "Books" };
 
@@ -34,8 +38,9 @@ export default function BooksPage() {
           <Lazy>
             <Bestsellers charts={charts} index={0} />
           </Lazy>
+          <GenreTiles title="Browse by Genre" tiles={genreTilesFor("book")} allHref={exploreHref({ type: "book" })} />
           <Lazy>
-            <DiscoverRow title="New & Notable" items={hub.then((h) => h.newReleases)} />
+            <DiscoverRow title="New & Notable" items={hub.then((h) => h.newReleases)} href={exploreHref({ type: "book", sort: "new" })} />
           </Lazy>
           <Lazy>
             <Bestsellers charts={charts} index={1} />
@@ -43,8 +48,18 @@ export default function BooksPage() {
           <Lazy>
             <DiscoverRow title="Most Anticipated" items={hub.then((h) => h.anticipated)} dates />
           </Lazy>
+          <MoodTiles title="What Are You in the Mood For?" tiles={moodTilesFor(["book"])} />
           <Lazy>
             <DiscoverRow title="Highest Rated This Year" items={hub.then((h) => h.topThisYear)} />
+          </Lazy>
+          <Lazy>
+            <CollectionRow type="book" preset="short-reads" />
+          </Lazy>
+          <Lazy>
+            <CollectionRow type="book" preset="hidden-gems" />
+          </Lazy>
+          <Lazy>
+            <CollectionRow type="book" preset="book-club" />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Trending Today on Open Library" items={b.trendingToday()} />
@@ -53,19 +68,19 @@ export default function BooksPage() {
             <Bestsellers charts={charts} index={2} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Fantasy" items={genres.then((g) => g.fantasy)} />
+            <DiscoverRow title="Fantasy" items={genres.then((g) => g.fantasy)} href={exploreHref({ type: "book", genre: "fantasy" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Science Fiction" items={genres.then((g) => g.scifi)} />
+            <DiscoverRow title="Science Fiction" items={genres.then((g) => g.scifi)} href={exploreHref({ type: "book", genre: "scifi" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Mystery & Thrillers" items={genres.then((g) => g.thriller)} />
+            <DiscoverRow title="Mystery & Thrillers" items={genres.then((g) => g.thriller)} href={exploreHref({ type: "book", genre: "thriller" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Romance" items={genres.then((g) => g.romance)} />
+            <DiscoverRow title="Romance" items={genres.then((g) => g.romance)} href={exploreHref({ type: "book", genre: "romance" })} />
           </Lazy>
           <Lazy>
-            <DiscoverRow title="Most Loved of All Time" items={hub.then((h) => h.allTime)} />
+            <DiscoverRow title="Most Loved of All Time" items={hub.then((h) => h.allTime)} href={exploreHref({ type: "book" })} />
           </Lazy>
         </Rows>
       </div>

@@ -369,3 +369,18 @@ export async function recommendationsFor(kind: TmdbKind, id: string) {
   const data = await tmdb<Paged>(`/${kind}/${id}/recommendations`, {}, 60 * 60 * 24);
   return normalizeList(data.results, kind);
 }
+
+/* --------------------------------------------------------------- explore */
+
+/** Generic /discover query. Returns one page of normalized results. */
+export async function discoverTmdb(kind: TmdbKind, params: Record<string, string>, page: number) {
+  const data = await tmdb<TmdbPaged<TmdbListItem> & { total_pages?: number }>(
+    `/discover/${kind}`,
+    { include_adult: "false", page: String(page), ...params },
+    60 * 60 * 6,
+  );
+  return {
+    items: normalizeList(data.results, kind),
+    hasMore: page < Math.min(data.total_pages ?? 1, 50),
+  };
+}

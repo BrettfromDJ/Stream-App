@@ -604,3 +604,43 @@ export async function getAuthor(id: string): Promise<AuthorProfile> {
     source: "Hardcover",
   };
 }
+
+/* --------------------------------------------------------------- explore */
+
+export interface HcExplore {
+  tags?: string[];
+  yearRange?: [number, number] | null;
+  minRating?: number;
+  minRatings?: number;
+  maxRatings?: number;
+  pages?: [number, number] | null;
+  sort: "popular" | "top" | "new";
+  page: number;
+}
+
+export async function exploreBooks(q: HcExplore) {
+  const size = 30;
+  const conds: string[] = ["image_id: { _is_null: false }"];
+  if (q.tags?.length) {
+    conds.push(`_or: [${q.tags.map((t) => `{ cached_tags: { _contains: { Genre: [{ tag: ${JSON.stringify(t)} }] } } }`).join(", ")}]`);
+  }
+  if (q.yearRange) conds.push(`release_year: { _gte: ${q.yearRange[0]}, _lte: ${q.yearRange[1]} }`);
+  const ratingParts: string[] = [];
+  if (q.minRating) ratingParts.push(`rating: { _gte: ${q.minRating} }`);
+  const minRatings = q.minRatings ?? (q.sort === "top" || q.minRating ? 50 : 0);
+  if (minRatings || q.maxRatings) {
+    conds.push(`ratings_count: { ${minRatings ? `_gte: ${minRatings}` : ""}${q.maxRatings ? ` _lte: ${q.maxRatings}` : ""} }`);
+  }
+  conds.push(...ratingParts);
+  if (q.pages) conds.push(`pages: { _gte: ${q.pages[0]}, _lte: ${q.pages[1]} }`);
+  if (q.sort === "new") conds.push(`release_date: { _lte: ${JSON.stringify(new Date().toISOString().slice(0, 10))} }`);
+  const orderBy =
+    q.sort === "top" ? "{ rating: desc_nulls_last }" : q.sort === "new" ? "{ release_date: desc_nulls_last }" : "{ users_count: desc }";
+
+  const data = await gql<{ books: HcRelatedBook[] }>(
+    `query Explore { books(where: { ${conds.join(", ")} }, order_by: ${orderBy}, limit: ${size}, offset: ${(q.page - 1) * size}) { ${RELATED_FIELDS} } }`,
+    {},
+    60 * 60 * 6,
+  );
+  return { items: dedupeByTitle(data.books).map(normalizeBook), hasMore: data.books.length === size };
+}
