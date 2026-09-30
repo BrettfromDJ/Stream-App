@@ -1,7 +1,7 @@
 import "server-only";
 import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo } from "@/lib/media/types";
 import { cleanDescription, formatDate } from "@/lib/media/format";
-import { ProviderError, fetchJson } from "./http";
+import { ProviderError, fetchJson, safely } from "./http";
 
 /**
  * IGDB adapter — video games. Uses a Twitch app (IGDB_CLIENT_ID + IGDB_CLIENT_SECRET).
@@ -215,8 +215,110 @@ function orderVideos(videos: IgdbGame["videos"]): MediaVideo[] {
     .slice(0, 12);
 }
 
+/* ------------------------------------------------- time to beat + stores */
+
+const STORES: { name: string; match: RegExp }[] = [
+  { name: "Steam", match: /(^|\.)store\.steampowered\.com$|(^|\.)steamcommunity\.com$/ },
+  { name: "PlayStation Store", match: /(^|\.)store\.playstation\.com$|(^|\.)playstation\.com$/ },
+  { name: "Xbox", match: /(^|\.)xbox\.com$|(^|\.)microsoft\.com$/ },
+  { name: "Nintendo eShop", match: /(^|\.)nintendo\.com$|(^|\.)nintendo\.co\.uk$/ },
+  { name: "Epic Games Store", match: /(^|\.)epicgames\.com$/ },
+  { name: "GOG", match: /(^|\.)gog\.com$/ },
+  { name: "App Store", match: /(^|\.)apps\.apple\.com$|(^|\.)itunes\.apple\.com$/ },
+  { name: "Google Play", match: /(^|\.)play\.google\.com$/ },
+  { name: "itch.io", match: /(^|\.)itch\.io$/ },
+  { name: "Humble Store", match: /(^|\.)humblebundle\.com$/ },
+];
+
+// PlayStation/Xbox/Nintendo hosts also serve non-store pages; only keep store-looking paths.
+const STORE_PATH: Record<string, RegExp> = {
+  Steam: /\/app\/\d+/,
+  "PlayStation Store": /store\.playstation\.com|\/games\//,
+  Xbox: /\/games\/store\/|\/p\/|\/store\//,
+  "Nintendo eShop": /\/store\/|\/games\/detail\//,
+  "Humble Store": /\/store\//,
+};
+
+function storeLinks(urls: string[]) {
+  const out = new Map<string, string>();
+  for (const raw of urls) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      continue;
+    }
+    if (url.protocol !== "https:" && url.protocol !== "http:") continue;
+    const store = STORES.find((s) => s.match.test(url.hostname));
+    if (!store || out.has(store.name)) continue;
+    const path = STORE_PATH[store.name];
+    if (path && !path.test(url.href)) continue;
+    url.protocol = "https:";
+    out.set(store.name, url.href);
+  }
+  // Keep a stable, familiar order.
+  return STORES.filter((s) => out.has(s.name)).map((s) => ({ name: s.name, url: out.get(s.name)! }));
+}
+
+async function steamPrice(appId: string) {
+  const data = await fetchJson<Record<string, { success?: boolean; data?: { price_overview?: { final_formatted?: string; initial_formatted?: string; discount_percent?: number } } | [] }>>(
+    `https://store.steampowered.com/api/appdetails?appids=${appId}&cc=us&filters=price_overview`,
+    { provider: "steam", revalidate: 60 * 60 * 3, timeoutMs: 6000 },
+  );
+  const entry = data[appId];
+  const price = entry?.success && !Array.isArray(entry.data) ? entry.data?.price_overview : undefined;
+  if (!price?.final_formatted) return null;
+  return {
+    price: price.final_formatted,
+    originalPrice: price.discount_percent ? price.initial_formatted ?? null : null,
+    discount: price.discount_percent || null,
+  };
+}
+
+/** Store links + Steam price + time to beat. Each part fails independently. */
+async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "timeToBeat">> {
+  const day = 60 * 60 * 24;
+  const [websites, external, ttb] = await Promise.all([
+    safely(() => igdb<{ websites?: { url?: string }[] }[]>("games", `fields websites.url; where id = ${id};`, day), []),
+    safely(() => igdb<{ url?: string }[]>("external_games", `fields url; where game = ${id}; limit 50;`, day), []),
+    safely(
+      () =>
+        igdb<{ hastily?: number; normally?: number; completely?: number; count?: number }[]>(
+          "game_time_to_beats",
+          `fields hastily, normally, completely, count; where game_id = ${id};`,
+          day,
+        ),
+      [],
+    ),
+  ]);
+
+  const urls = [
+    ...(websites[0]?.websites ?? []).map((w) => w.url),
+    ...external.map((e) => e.url),
+  ].filter((u): u is string => Boolean(u));
+  const stores: NonNullable<MediaDetail["stores"]> = storeLinks(urls);
+
+  const steam = stores.find((s) => s.name === "Steam");
+  const appId = steam?.url.match(/\/app\/(\d+)/)?.[1];
+  if (steam && appId) Object.assign(steam, (await safely(() => steamPrice(appId), null)) ?? {});
+
+  const t = ttb[0];
+  const hours = (seconds?: number) => (seconds && seconds > 0 ? Math.max(0.5, Math.round((seconds / 3600) * 2) / 2) : null);
+  const entries = [
+    { label: "Main Story", hours: hours(t?.hastily) },
+    { label: "Main + Extras", hours: hours(t?.normally) },
+    { label: "Completionist", hours: hours(t?.completely) },
+  ].filter((e): e is { label: string; hours: number } => e.hours !== null);
+
+  return {
+    stores,
+    timeToBeat: entries.length ? { entries, submissions: t?.count ?? null } : null,
+  };
+}
+
 export async function getGame(id: string): Promise<MediaDetail> {
   if (!/^\d+$/.test(id)) throw new ProviderError("igdb", "not_found");
+  const extras = gameExtras(id);
   const data = await igdb<IgdbGame[]>(
     "games",
     `fields name, summary, storyline, first_release_date, cover.image_id, artworks.image_id, screenshots.image_id,
@@ -264,6 +366,7 @@ export async function getGame(id: string): Promise<MediaDetail> {
     facts,
     screenshots: [...(g.screenshots ?? []), ...(g.artworks ?? [])].slice(0, 12).map((s) => wide(s)!),
     videos: orderVideos(g.videos),
+    ...(await extras),
     related: (g.similar_games ?? []).filter((s) => s.cover).map(normalize).slice(0, 18),
     score: critic
       ? { value: critic, max: 100, source: "Critics" }

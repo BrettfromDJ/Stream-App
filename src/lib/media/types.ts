@@ -57,6 +57,10 @@ export interface MediaDetail extends MediaSearchResult {
   related?: MediaSearchResult[];
   /** Several titled "more like this" rows (e.g. series, author, similar). Takes precedence over `related`. */
   relatedRows?: { title: string; items: MediaSearchResult[]; href?: string }[];
+  /** Games: how long it takes to finish, from player submissions. */
+  timeToBeat?: { entries: { label: string; hours: number }[]; submissions: number | null } | null;
+  /** Games: official store pages, with a live price where available. */
+  stores?: { name: string; url: string; price?: string | null; originalPrice?: string | null; discount?: number | null }[];
   /** Linkable people shown in the header (e.g. book authors → author pages). */
   creators?: { name: string; href: string }[];
   score?: { value: number; max: number; source: string } | null;

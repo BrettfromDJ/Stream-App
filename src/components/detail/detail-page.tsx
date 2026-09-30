@@ -13,6 +13,7 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { LibraryPanel } from "@/components/library/library-panel";
 import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
+import { TimeToBeat, WhereToBuy } from "./game-extras";
 import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
 import { cn } from "@/lib/utils";
 
@@ -171,6 +172,9 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               <ExpandableText text={detail.description} lines={5} />
             </section>
           ) : null}
+
+          {detail.timeToBeat && <TimeToBeat data={detail.timeToBeat} />}
+          {detail.stores && detail.stores.length > 0 && <WhereToBuy stores={detail.stores} />}
 
           {detail.facts.length > 0 && (
             <section>
