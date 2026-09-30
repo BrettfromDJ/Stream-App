@@ -22,7 +22,7 @@ interface MediaCardProps {
   /** Top-10 style: a large outlined number beside the poster, no caption. */
   rank?: number;
   /** Small label on the artwork, e.g. a release date. */
-  badge?: string | null;
+  badge?: React.ReactNode;
 }
 
 /** Poster card: artwork first, quiet caption, quick actions on hover / long-press. */

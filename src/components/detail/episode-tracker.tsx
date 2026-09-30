@@ -7,7 +7,8 @@ import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { setEpisodes } from "@/lib/library/actions";
 import { snapshotOf, type CardData } from "@/lib/media/card";
-import { formatRuntime, formatShortDate } from "@/lib/media/format";
+import { formatRuntime } from "@/lib/media/format";
+import { FriendlyDate } from "@/components/ui/friendly-date";
 import type { Episode, SeasonDetail, SeasonSummary } from "@/lib/media/types";
 import { haptic, reportError } from "@/components/library/use-library-mutations";
 import { cn } from "@/lib/utils";
@@ -213,7 +214,12 @@ export function EpisodeTracker({ show, seasons, initialSeason, watched: initialW
                         <span className="min-w-0 flex-1">
                           <span className="block text-[12px] font-semibold text-fg-3 tabular-nums">
                             E{e.number}
-                            {e.airDate ? ` · ${isAired ? formatShortDate(e.airDate) : `Airs ${formatShortDate(e.airDate)}`}` : ""}
+                            {e.airDate ? (
+                              <>
+                                {" · "}
+                                {isAired ? <FriendlyDate date={e.airDate} variant="since" /> : <>Airs <FriendlyDate date={e.airDate} lower /></>}
+                              </>
+                            ) : null}
                             {e.runtime ? ` · ${formatRuntime(e.runtime)}` : ""}
                           </span>
                           <span className={cn("mt-0.5 block text-[15px] leading-snug font-semibold", isWatched && "text-fg-2")}>{e.name}</span>

@@ -9,6 +9,7 @@ import { snapshotOf, type CardData } from "@/lib/media/card";
 import { daysToFinish, formatHours } from "@/lib/media/progress";
 import type { MediaProgress } from "@/lib/media/types";
 import { Button } from "@/components/ui/button";
+import { FriendlyDate } from "@/components/ui/friendly-date";
 import { Sheet } from "@/components/ui/sheet";
 import { haptic, reportError } from "@/components/library/use-library-mutations";
 import { cn } from "@/lib/utils";
@@ -29,8 +30,6 @@ const localDay = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const SHORT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-const shortDay = (iso: string) => SHORT.format(new Date(`${iso}T00:00:00Z`));
 
 function toProgress(u: ProgressUpdate, prev: MediaProgress | null): MediaProgress {
   const log = prev && prev.kind !== "episode" ? prev.log : undefined;
@@ -187,11 +186,11 @@ export function ProgressTracker({ media, progress: saved, totalPages: providerPa
               : !isBook && targetHours && started
                 ? `${Math.round(percent ?? 0)}% of ${targets.find((t) => t.hours === targetHours)?.label ?? "the estimate"}`
                 : started && lastLog
-                  ? `Updated ${shortDay(lastLog)}`
+                  ? <>Updated <FriendlyDate date={lastLog} variant="since" lower /></>
                   : isBook
                     ? "Log where you're up to — it moves this to Reading."
                     : "Log your hours — it moves this to Playing."}
-          {started && lastLog && eta ? <span className="text-fg-3"> · Updated {shortDay(lastLog)}</span> : null}
+          {started && lastLog && eta ? <span className="text-fg-3"> · Updated <FriendlyDate date={lastLog} variant="since" lower /></span> : null}
         </p>
 
         <div className="mt-4 flex flex-wrap items-center gap-1.5">

@@ -6,7 +6,8 @@ import { useOptimistic, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { saveReview, setRating } from "@/lib/library/actions";
 import type { CardData } from "@/lib/media/card";
-import { formatRating, formatShortDate } from "@/lib/media/format";
+import { formatRating } from "@/lib/media/format";
+import { FriendlyDate } from "@/components/ui/friendly-date";
 import { canRate, statusLabel } from "@/lib/media/status";
 import type { LibraryStatus } from "@/lib/media/types";
 import { Button } from "@/components/ui/button";
@@ -139,7 +140,7 @@ export function LibraryPanel({ media, review, reviewedAt }: LibraryPanelProps) {
           >
             <p className="text-[15px] leading-relaxed whitespace-pre-line text-fg/90">{text}</p>
             <p className="mt-3 flex items-center gap-1.5 text-[12px] text-fg-3">
-              {reviewedAt ? formatShortDate(reviewedAt) : "Just now"}
+              {reviewedAt ? <FriendlyDate date={reviewedAt} variant="since" /> : "Just now"}
               <span aria-hidden>·</span>
               <span className="inline-flex items-center gap-1 group-hover:text-fg-2">
                 <PenLine className="size-3" /> Edit

@@ -4,6 +4,7 @@ import type { MediaSearchResult } from "@/lib/media/types";
 import { MediaCard } from "@/components/media/media-card";
 import { Row, ROW_SIZES } from "@/components/media/row";
 import { CountdownCard } from "./countdown-card";
+import { FriendlyDate } from "@/components/ui/friendly-date";
 
 type Items = MediaSearchResult[] | Promise<MediaSearchResult[]>;
 
@@ -18,15 +19,8 @@ interface DiscoverRowProps {
   limit?: number;
 }
 
-const SHORT = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-const WITH_YEAR = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
-
 function dateBadge(date?: string | null) {
-  if (!date) return null;
-  const d = new Date(`${date.slice(0, 10)}T00:00:00Z`);
-  if (Number.isNaN(d.getTime())) return null;
-  const monthsAway = (d.getTime() - Date.now()) / (30 * 86_400_000);
-  return monthsAway > 10 ? WITH_YEAR.format(d) : SHORT.format(d);
+  return date && /^\d{4}-\d{2}-\d{2}/.test(date) ? <FriendlyDate date={date.slice(0, 10)} variant="badge" /> : null;
 }
 
 /** A discovery carousel. Renders nothing when its source is empty or unavailable. */

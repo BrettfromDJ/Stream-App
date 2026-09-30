@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getLibrary } from "@/lib/library/queries";
-import { formatShortDate, yearFrom } from "@/lib/media/format";
+import { yearFrom } from "@/lib/media/format";
 import { TYPE_LABEL, mediaHref } from "@/lib/media/labels";
 import { BackButton } from "@/components/detail/back-button";
 import { Artwork } from "@/components/media/artwork";
 import { StarRating } from "@/components/library/star-rating";
 import { buttonClasses } from "@/components/ui/button";
+import { FriendlyDate } from "@/components/ui/friendly-date";
 
 export const metadata: Metadata = { title: "Reviews" };
 
@@ -44,7 +45,7 @@ export default async function ReviewsPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[12px] text-fg-3">
-                      {formatShortDate(item.reviewedAt ?? item.updatedAt)} · {TYPE_LABEL[item.mediaType]}
+                      <FriendlyDate date={item.reviewedAt ?? item.updatedAt} variant="since" /> · {TYPE_LABEL[item.mediaType]}
                     </p>
                     <p className="mt-0.5 text-[17px] leading-tight font-semibold tracking-[-0.015em] group-hover:underline group-hover:decoration-white/30 group-hover:underline-offset-4">
                       {item.title}

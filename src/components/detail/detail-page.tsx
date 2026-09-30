@@ -18,6 +18,7 @@ import { WhereToWatch } from "./where-to-watch";
 import { EpisodeTracker } from "./episode-tracker";
 import { ProgressTracker } from "./progress-tracker";
 import { RemindMe } from "@/components/reminders/remind-me";
+import { FriendlyDate } from "@/components/ui/friendly-date";
 import { todayIso } from "@/lib/reminders/reminders";
 import { getUser } from "@/lib/supabase/server";
 import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
@@ -224,7 +225,15 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
                 {detail.facts.map((f) => (
                   <div key={f.label} className="min-w-0">
                     <dt className="text-[12px] font-medium tracking-wide text-fg-3 uppercase">{f.label}</dt>
-                    <dd className="mt-0.5 text-[15px] break-words text-fg/90">{f.value}</dd>
+                    <dd className="mt-0.5 text-[15px] break-words text-fg/90">
+                      {f.label === "Next episode" && detail.nextEpisode?.airDate ? (
+                        <>
+                          S{detail.nextEpisode.season} E{detail.nextEpisode.episode} · <FriendlyDate date={detail.nextEpisode.airDate} />
+                        </>
+                      ) : (
+                        f.value
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>
