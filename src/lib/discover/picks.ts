@@ -41,20 +41,8 @@ export async function tasteProfile(types: MediaType[]): Promise<Taste[]> {
   });
 }
 
-function shuffle<T>(list: T[]) {
-  const a = [...list];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-/**
- * A pool of well-regarded titles the user doesn't have, leaning into their taste.
- * `random` mixes pages and sorts for Surprise Me / Swipe; otherwise it's stable for rows.
- */
-export async function picks(types: MediaType[], { count = 20, random = false } = {}): Promise<MediaSearchResult[]> {
+/** A pool of well-regarded titles the user doesn't have, leaning into their taste. */
+export async function picks(types: MediaType[], { count = 20 } = {}): Promise<MediaSearchResult[]> {
   const [taste, library, user] = await Promise.all([tasteProfile(types), getLibrary(), getUser()]);
   const have = new Set(library.items.map((i) => `${i.mediaType}:${i.externalId}`));
   const services = user?.services ?? [];
@@ -63,9 +51,8 @@ export async function picks(types: MediaType[], { count = 20, random = false } =
     const liked = taste.find((t) => t.type === type)?.genres ?? [];
     const genres = liked.length ? liked.slice(0, 3).map((g) => g.slug) : [undefined];
     return genres.map((genre, i) => {
-      const sort: ExploreSort = random ? (Math.random() < 0.5 ? "top" : "popular") : i === 0 ? "top" : "popular";
-      const page = random ? 1 + Math.floor(Math.random() * 4) : 1;
-      return explore({ type, genre, sort, rating: "good", page }, services);
+      const sort: ExploreSort = i === 0 ? "top" : "popular";
+      return explore({ type, genre, sort, rating: "good", page: 1 }, services);
     });
   });
   const results = (await Promise.all(queries)).map((r) => r.items);
@@ -83,5 +70,5 @@ export async function picks(types: MediaType[], { count = 20, random = false } =
       merged.push(item);
     }
   }
-  return (random ? shuffle(merged) : merged).slice(0, count);
+  return merged.slice(0, count);
 }

@@ -14,7 +14,6 @@ import { ReleaseCalendar } from "@/components/discover/release-calendar";
 import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
 import { CollectionRow, presetItems } from "@/components/explore/collection-row";
 import { PickedForYou } from "@/components/discover/picked-for-you";
-import { DiscoverActions } from "@/components/discover/discover-actions";
 
 
 export const metadata: Metadata = { title: "Games" };
@@ -44,7 +43,6 @@ export default function GamesPage() {
           <Lazy>
             <DiscoverRow title="Top Sellers on Steam" items={steam.then((s) => s.topSellers)} variant="ranked" />
           </Lazy>
-          <DiscoverActions types={["game"]} label="games" />
           <GenreTiles title="Browse by Genre" tiles={genreTilesFor("game")} allHref={exploreHref({ type: "game" })} />
           <Lazy>
             <PickedForYou types={["game"]} />

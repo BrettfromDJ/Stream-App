@@ -13,7 +13,6 @@ import { ReleaseCalendar } from "@/components/discover/release-calendar";
 import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
 import { CollectionRow, presetItems } from "@/components/explore/collection-row";
 import { PickedForYou } from "@/components/discover/picked-for-you";
-import { DiscoverActions } from "@/components/discover/discover-actions";
 
 
 export const metadata: Metadata = { title: "Books" };
@@ -44,7 +43,6 @@ export default function BooksPage() {
           <Lazy>
             <Bestsellers charts={charts} index={0} layout="chart" />
           </Lazy>
-          <DiscoverActions types={["book"]} label="books" />
           <GenreTiles title="Browse by Genre" tiles={genreTilesFor("book")} allHref={exploreHref({ type: "book" })} />
           <Lazy>
             <PickedForYou types={["book"]} />
