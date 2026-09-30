@@ -28,6 +28,9 @@ import { cn } from "@/lib/utils";
 const SOURCE: Record<MediaType, string> = { movie: "TMDB", tv: "TMDB", book: "Hardcover", game: "IGDB" };
 const sourceOf = (type: MediaType, id: string) => (type === "book" && !/^\d+$/.test(id) ? "Open Library" : SOURCE[type]);
 
+// Phones: pull the cover up so it starts just below the back button (hero is min(62vh, 560px) tall).
+const PHONE_TOP = "-mt-[calc(min(62vh,560px)-var(--nav-h)-4.25rem)]";
+
 type Loaded = { detail: MediaDetail; degraded: boolean };
 
 async function load(type: MediaType, id: string, item: LibraryItem | null): Promise<Loaded | null> {
@@ -141,7 +144,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
       <div
         className={cn(
           "gutter relative",
-          isBook ? "-mt-[46vh] md:-mt-[34vh] lg:-mt-[330px]" : hasHero ? "-mt-[42vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2",
+          isBook ? `${PHONE_TOP} md:-mt-[34vh] lg:-mt-[330px]` : hasHero ? `${PHONE_TOP} md:-mt-[30vh] lg:-mt-[300px]` : "mt-2",
         )}
       >
         <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-end md:gap-8 md:text-left">
