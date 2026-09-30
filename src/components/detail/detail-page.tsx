@@ -97,10 +97,11 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
   const hero = detail.backdropUrl ?? null;
   const hasHero = Boolean(hero || detail.artworkUrl);
-  // Books get a cover-built header (no wide backdrop exists), centered on phones.
+  // Books get a cover-built header (no wide backdrop exists).
   const isBook = type === "book" && !hero && Boolean(detail.artworkUrl);
   const shelf = isBook ? (detail.relatedRows ?? []).flatMap((r) => r.items).filter((b) => b.externalId !== id) : [];
-  const center = isBook ? "max-md:justify-center" : "";
+  // Phones: everything in the title block is centered under the artwork.
+  const center = "max-md:justify-center";
 
   return (
     <article className="relative animate-fade-in">
@@ -143,7 +144,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           isBook ? "-mt-[42vh] md:-mt-[34vh] lg:-mt-[330px]" : hasHero ? "-mt-[34vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2",
         )}
       >
-        <div className={cn("flex flex-col gap-5 md:flex-row md:items-end md:gap-8", isBook && "items-center text-center md:text-left")}>
+        <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-end md:gap-8 md:text-left">
           {isBook ? (
             <BookCover
               src={detail.artworkUrl}
@@ -154,11 +155,11 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           ) : (
           <div
             className={cn(
-              "relative w-[34vw] max-w-[150px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
+              "relative w-[40vw] max-w-[170px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
               "aspect-[2/3]",
             )}
           >
-            <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 34vw" priority />
+            <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 40vw" priority />
           </div>
           )}
           <div className="min-w-0 max-md:w-full md:pb-2">
