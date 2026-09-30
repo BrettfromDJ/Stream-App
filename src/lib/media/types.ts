@@ -65,6 +65,9 @@ export interface MediaDetail extends MediaSearchResult {
   seasons?: SeasonSummary[];
   /** TV: whether the show has finished airing. */
   ended?: boolean;
+  /** TV: the next scheduled episode and the latest one to air. */
+  nextEpisode?: EpisodeRef | null;
+  lastEpisode?: EpisodeRef | null;
   /** Movies & TV: where it's available in the US (TMDB / JustWatch). */
   watch?: WatchAvailability | null;
   /** Linkable people shown in the header (e.g. book authors → author pages). */
@@ -106,9 +109,16 @@ export interface LibraryItem {
   updatedAt: string;
 }
 
-/**
- * Not tracked in the MVP, but the Continue card already knows how to render it.
- */
+/** Daily snapshots of a progress value: [YYYY-MM-DD, value], oldest first. Powers pace estimates. */
+export interface EpisodeRef {
+  season: number;
+  episode: number;
+  airDate: string | null;
+  name: string | null;
+}
+
+export type ProgressLog = [string, number][];
+
 export type MediaProgress =
   | {
       kind: "episode";
@@ -122,9 +132,10 @@ export type MediaProgress =
       total?: number;
       done?: boolean;
     }
-  | { kind: "page"; page: number; totalPages?: number; percent?: number }
-  | { kind: "hours"; hours: number; percent?: number }
-  | { kind: "percent"; percent: number };
+  | { kind: "page"; page: number; totalPages?: number; percent?: number; log?: ProgressLog }
+  /** Games: hours played, measured against a time-to-beat target when one is known. */
+  | { kind: "hours"; hours: number; targetHours?: number; percent?: number; log?: ProgressLog }
+  | { kind: "percent"; percent: number; log?: ProgressLog };
 
 /** Minimal shape any card can render. */
 export interface CardMedia {

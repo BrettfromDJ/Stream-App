@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BarChart3, ChevronRight, NotebookPen, LogOut, Tv } from "lucide-react";
+import { BarChart3, BellRing, ChevronRight, NotebookPen, LogOut, Tv } from "lucide-react";
 import { getLibrary } from "@/lib/library/queries";
 import { computeStats } from "@/lib/library/selectors";
 import { getUser } from "@/lib/supabase/server";
@@ -45,6 +45,7 @@ export default async function ProfilePage() {
 
       <nav className="gutter mt-8 md:max-w-2xl" aria-label="Profile">
         <ul className="overflow-hidden rounded-2xl bg-white/[0.04]">
+          <ListLink href="/reminders" icon={<BellRing />} label="Reminders" />
           <ListLink href="/profile/stats" icon={<BarChart3 />} label="Statistics" detail={stats.averageRating ? `★ ${stats.averageRating} avg` : undefined} />
           <ListLink href="/profile/reviews" icon={<NotebookPen />} label="Reviews" detail={reviews ? String(reviews) : undefined} />
           <ListLink href="/profile/services" icon={<Tv />} label="Streaming Services" detail={user?.services.length ? String(user.services.length) : undefined} />

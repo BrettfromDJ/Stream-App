@@ -44,7 +44,7 @@ export function PlayTrailerButton({ video }: { video: MediaVideo }) {
     <button
       type="button"
       onClick={() => play(video.youtubeId)}
-      className={buttonClasses("glass", "md", "mt-5")}
+      className={buttonClasses("glass", "md")}
     >
       <Play className="fill-current" /> Play Trailer
     </button>

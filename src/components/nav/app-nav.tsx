@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "motion/react";
-import { House, LibraryBig, Search, CircleUserRound } from "lucide-react";
+import { Bell, House, LibraryBig, Search, CircleUserRound } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -73,7 +73,7 @@ function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
         <Link href="/" aria-label="Home" className="shrink-0">
           <Logo className="size-7" />
         </Link>
-        <nav aria-label="Browse" className="no-scrollbar -mr-5 flex gap-1.5 overflow-x-auto pr-5">
+        <nav aria-label="Browse" className="no-scrollbar flex min-w-0 gap-1.5 overflow-x-auto">
           {BROWSE_TABS.map(({ href, label }) => {
             const active = isActive(pathname, href);
             return (
@@ -91,6 +91,9 @@ function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
             );
           })}
         </nav>
+        <Link href="/reminders" aria-label="Reminders" className="-mr-1.5 ml-auto grid size-9 shrink-0 place-items-center rounded-full active:bg-white/10">
+          <Bell className="size-[20px]" strokeWidth={2.1} />
+        </Link>
       </div>
 
       {/* Desktop: Netflix-style link bar */}
@@ -125,6 +128,16 @@ function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <Link
+            href="/reminders"
+            aria-label="Reminders"
+            className={cn(
+              "grid size-10 place-items-center rounded-full transition-colors hover:bg-white/10",
+              isActive(pathname, "/reminders") && "bg-white/10",
+            )}
+          >
+            <Bell className="size-[19px]" strokeWidth={2.1} />
+          </Link>
           <Link
             href="/search"
             aria-label="Search"

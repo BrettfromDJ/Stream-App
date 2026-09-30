@@ -9,7 +9,8 @@ Next.js (App Router) · TypeScript · Tailwind CSS v4 · Supabase · Motion · d
 2. Copy `.env.example` to `.env.local` and fill it in (see below).
 3. Create the database: open the Supabase SQL editor and run
    [`supabase/migrations/20260929000000_library.sql`](supabase/migrations/20260929000000_library.sql)
-   (or `supabase db push` with the Supabase CLI).
+   and then [`supabase/migrations/20261001000000_calendar_feed.sql`](supabase/migrations/20261001000000_calendar_feed.sql)
+   (the private calendar link for Reminders), or `supabase db push` with the Supabase CLI.
 4. Supabase → Authentication → URL Configuration:
    - **Site URL**: your production URL
    - **Redirect URLs**: `http://localhost:3000/**` and `https://*-<your-vercel-team>.vercel.app/**`

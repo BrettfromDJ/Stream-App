@@ -5,13 +5,13 @@ import { mediaHref } from "@/lib/media/labels";
 import { statusLabel } from "@/lib/media/status";
 import type { LibraryItem } from "@/lib/media/types";
 import { Artwork } from "@/components/media/artwork";
-import { progressLabel } from "@/lib/media/progress";
+import { progressLabel, progressPercent } from "@/lib/media/progress";
 
 /** The one thing you're most likely to go back to, given pride of place. */
 export function FeaturedContinue({ item }: { item: LibraryItem }) {
   const wide = item.backdropUrl ?? (item.mediaType === "game" ? item.artworkUrl : null);
   const progress = item.progress;
-  const percent = progress?.percent ?? null;
+  const percent = progressPercent(progress);
   const detail = progressLabel(progress) ?? item.subtitle;
   const verb = item.mediaType === "book" ? "reading" : item.mediaType === "game" ? "playing" : "watching";
 

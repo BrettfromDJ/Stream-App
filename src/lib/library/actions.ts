@@ -138,6 +138,98 @@ export async function removeFromLibrary(id: string): Promise<ActionResult> {
   return { ok: true, data: null };
 }
 
+/** The library row for a title, adding it as "in progress" first when `add` is set. */
+async function findOrAdd(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  media: MediaSnapshot,
+  add: boolean,
+): Promise<ActionResult<LibraryRow>> {
+  const { data: existing } = await supabase
+    .from("library_items")
+    .select(LIBRARY_COLUMNS)
+    .eq("media_type", media.type)
+    .eq("external_id", media.externalId)
+    .maybeSingle();
+  if (existing) return { ok: true, data: existing as LibraryRow };
+  if (!add) return fail("not_found", "That isn't in your library.");
+  const added = await addToLibrary(media, "in_progress");
+  if (!added.ok) return added;
+  const { data } = await supabase.from("library_items").select(LIBRARY_COLUMNS).eq("id", added.data.id).single();
+  return data ? { ok: true, data: data as LibraryRow } : fail("failed", "Couldn't save that change. Try again.");
+}
+
+/* ------------------------------------------------------ pages & hours */
+
+export type ProgressUpdate =
+  | { kind: "page"; page: number; totalPages?: number | null }
+  | { kind: "percent"; percent: number }
+  | { kind: "hours"; hours: number; targetHours?: number | null };
+
+const finite = (n: unknown, min: number, max: number): n is number =>
+  typeof n === "number" && Number.isFinite(n) && n >= min && n <= max;
+
+/**
+ * Saves pages read (books) or hours played (games), adding the title if needed.
+ * `day` is the viewer's local date, so the daily log matches their calendar.
+ */
+export async function setProgress(
+  media: MediaSnapshot,
+  update: ProgressUpdate,
+  day: string,
+): Promise<ActionResult<LibraryItem & { finished: boolean }>> {
+  const kindOk =
+    (media?.type === "book" && (update?.kind === "page" || update?.kind === "percent")) ||
+    (media?.type === "game" && update?.kind === "hours");
+  if (!kindOk || !/^\d{4}-\d{2}-\d{2}$/.test(day ?? "") || Math.abs(Date.parse(day) - Date.now()) > 2 * 86_400_000) {
+    return fail("invalid", "Something about that update looks off.");
+  }
+
+  let progress: NonNullable<LibraryItem["progress"]>;
+  let value: number;
+  let atEnd = false;
+  if (update.kind === "page") {
+    const total = update.totalPages == null ? null : Math.round(update.totalPages);
+    if (!finite(update.page, 0, 100_000) || (total != null && !finite(total, 1, 100_000))) return fail("invalid", "That page number looks off.");
+    const page = Math.round(total ? Math.min(update.page, total) : update.page);
+    value = page;
+    atEnd = Boolean(total && page >= total);
+    progress = { kind: "page", page, ...(total ? { totalPages: total, percent: Math.round((page / total) * 1000) / 10 } : {}) };
+  } else if (update.kind === "percent") {
+    if (!finite(update.percent, 0, 100)) return fail("invalid", "Percent goes from 0 to 100.");
+    value = Math.round(update.percent);
+    atEnd = value >= 100;
+    progress = { kind: "percent", percent: value };
+  } else {
+    const target = update.targetHours == null ? null : update.targetHours;
+    if (!finite(update.hours, 0, 100_000) || (target != null && !finite(target, 0.1, 100_000))) return fail("invalid", "That play time looks off.");
+    value = Math.round(update.hours * 10) / 10;
+    progress = {
+      kind: "hours",
+      hours: value,
+      ...(target ? { targetHours: target, percent: Math.min(100, Math.round((value / target) * 1000) / 10) } : {}),
+    };
+  }
+
+  const ctx = await context();
+  if (ctx.err) return ctx.err;
+  const found = await findOrAdd(ctx.supabase, media, value > 0);
+  if (!found.ok) return found;
+  const row = found.data;
+
+  // One log entry per day (the latest value wins); switching pages ↔ percent starts a fresh log.
+  const prev = row.progress && row.progress.kind === progress.kind && "log" in row.progress ? row.progress.log ?? [] : [];
+  const log = prev.filter(([d]) => d !== day).concat([[day, value]]).sort(([a], [b]) => a.localeCompare(b)).slice(-120);
+  progress = { ...progress, log };
+
+  let status = row.status;
+  if (value > 0 && status === "backlog") status = "in_progress";
+  const finished = atEnd && status !== "completed";
+  if (finished) status = "completed";
+
+  const res = await updateItem(row.id, { progress, status });
+  return res.ok ? { ok: true, data: { ...res.data, finished } } : res;
+}
+
 /* ------------------------------------------------------------- episodes */
 
 export interface EpisodeUpdate {
@@ -193,21 +285,9 @@ export async function setEpisodes(input: EpisodeUpdate): Promise<ActionResult<Li
   const ctx = await context();
   if (ctx.err) return ctx.err;
 
-  const { data: existing } = await ctx.supabase
-    .from("library_items")
-    .select(LIBRARY_COLUMNS)
-    .eq("media_type", "tv")
-    .eq("external_id", show.externalId)
-    .maybeSingle();
-
-  let row = existing as LibraryRow | null;
-  if (!row) {
-    if (!watched) return fail("not_found", "That show isn't in your library.");
-    const added = await addToLibrary(show, "in_progress");
-    if (!added.ok) return added;
-    const { data } = await ctx.supabase.from("library_items").select(LIBRARY_COLUMNS).eq("id", added.data.id).single();
-    row = data as LibraryRow;
-  }
+  const found = await findOrAdd(ctx.supabase, show, watched);
+  if (!found.ok) return found;
+  const row = found.data;
 
   const prev = row.progress?.kind === "episode" ? row.progress.watched ?? {} : {};
   const map: Record<string, number[]> = { ...prev };

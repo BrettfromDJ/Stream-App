@@ -11,6 +11,7 @@ import { PreviewBanner } from "@/components/profile/preview-banner";
 import { HeroFrame, HomeHero } from "@/components/home/home-hero";
 import { FeaturedContinue } from "@/components/home/featured-continue";
 import { CategoryTiles } from "@/components/home/category-tiles";
+import { HeadsUp } from "@/components/reminders/heads-up";
 
 function statusLine(inProgress: number, total: number) {
   if (!total) return "Start your shelf — everything you watch, read and play, in one place.";
@@ -36,6 +37,10 @@ export default async function HomePage() {
 
       <div className="mt-2 flex flex-col gap-9 md:gap-11">
         {featured && <FeaturedContinue item={featured} />}
+
+        <Suspense fallback={null}>
+          <HeadsUp items={library.items} />
+        </Suspense>
 
         {sections.length === 0 && !hasError && (
           <Suspense fallback={null}>

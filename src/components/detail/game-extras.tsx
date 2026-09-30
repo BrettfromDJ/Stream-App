@@ -1,9 +1,7 @@
 import { ArrowUpRight } from "lucide-react";
 import type { MediaDetail } from "@/lib/media/types";
+import { formatHours } from "@/lib/media/progress";
 
-function formatHours(h: number) {
-  return Number.isInteger(h) ? String(h) : h.toFixed(1);
-}
 
 export function TimeToBeat({ data }: { data: NonNullable<MediaDetail["timeToBeat"]> }) {
   const max = Math.max(...data.entries.map((e) => e.hours));

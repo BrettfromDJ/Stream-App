@@ -16,6 +16,9 @@ import { ExpandableText } from "./expandable-text";
 import { TimeToBeat, WhereToBuy } from "./game-extras";
 import { WhereToWatch } from "./where-to-watch";
 import { EpisodeTracker } from "./episode-tracker";
+import { ProgressTracker } from "./progress-tracker";
+import { RemindMe } from "@/components/reminders/remind-me";
+import { todayIso } from "@/lib/reminders/reminders";
 import { getUser } from "@/lib/supabase/server";
 import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
 import { cn } from "@/lib/utils";
@@ -77,6 +80,18 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
     card.backdropUrl = detail.backdropUrl;
     card.artworkUrl = detail.artworkUrl;
   }
+
+  // Not out yet (or a new episode is scheduled): offer a reminder.
+  const today = todayIso();
+  const upcoming =
+    type === "tv"
+      ? // Mid-season episodes only matter once you're watching; premieres always do.
+        detail.nextEpisode?.airDate && detail.nextEpisode.airDate > today && (detail.nextEpisode.episode === 1 || item?.status === "in_progress")
+        ? detail.nextEpisode.airDate
+        : null
+      : detail.releaseDate && /^\d{4}-\d{2}-\d{2}$/.test(detail.releaseDate) && detail.releaseDate > today
+        ? detail.releaseDate
+        : null;
 
   const hero = detail.backdropUrl ?? null;
   const hasHero = Boolean(hero || detail.artworkUrl);
@@ -156,7 +171,12 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               ) : null}
             </p>
             {detail.genres.length > 0 && <p className="mt-1.5 text-[14px] text-fg-3">{detail.genres.slice(0, 4).join(" · ")}</p>}
-            {detail.videos?.[0] && <PlayTrailerButton video={detail.videos[0]} />}
+            {(detail.videos?.[0] || upcoming) && (
+              <div className="mt-5 flex flex-wrap gap-2">
+                {detail.videos?.[0] && <PlayTrailerButton video={detail.videos[0]} />}
+                {upcoming && <RemindMe media={card} date={upcoming} />}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -183,6 +203,14 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               initialSeason={await initialSeason(id, detail.seasons, item)}
               watched={item?.progress?.kind === "episode" ? item.progress.watched ?? {} : {}}
               ended={Boolean(detail.ended)}
+            />
+          )}
+          {(type === "book" || type === "game") && (
+            <ProgressTracker
+              media={card}
+              progress={item?.progress && item.progress.kind !== "episode" ? item.progress : null}
+              totalPages={typeof detail.metadata?.pages === "number" && detail.metadata.pages > 0 ? detail.metadata.pages : null}
+              targets={detail.timeToBeat?.entries.filter((e) => e.hours > 0) ?? []}
             />
           )}
           {detail.watch && <WhereToWatch watch={detail.watch} services={(await getUser())?.services ?? []} />}

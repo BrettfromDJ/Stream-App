@@ -116,6 +116,16 @@ interface TmdbMovieDetail extends TmdbDetailCommon {
   release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string }[] }[] };
 }
 
+interface TmdbEpisodeRef {
+  air_date?: string | null;
+  season_number: number;
+  episode_number: number;
+  name?: string | null;
+}
+
+const episodeRef = (e?: TmdbEpisodeRef | null) =>
+  e ? { season: e.season_number, episode: e.episode_number, airDate: e.air_date ?? null, name: e.name ?? null } : null;
+
 interface TmdbTvDetail extends TmdbDetailCommon {
   name: string;
   first_air_date?: string;
@@ -126,7 +136,8 @@ interface TmdbTvDetail extends TmdbDetailCommon {
   in_production?: boolean;
   networks?: { name: string }[];
   created_by?: { name: string }[];
-  next_episode_to_air?: { air_date?: string; season_number: number; episode_number: number } | null;
+  next_episode_to_air?: TmdbEpisodeRef | null;
+  last_episode_to_air?: TmdbEpisodeRef | null;
   seasons?: { season_number: number; name?: string; episode_count?: number; air_date?: string | null; poster_path?: string | null }[];
   content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
 }
@@ -329,6 +340,8 @@ export async function getTv(id: string): Promise<MediaDetail> {
     score: score(d),
     seasons: seasonsOf(d),
     ended: d.in_production === false || /ended|canceled/i.test(d.status ?? ""),
+    nextEpisode: episodeRef(next),
+    lastEpisode: episodeRef(d.last_episode_to_air),
     metadata: {
       genres: d.genres?.map((g) => g.name) ?? [],
       seasons,
