@@ -141,7 +141,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
       <div
         className={cn(
           "gutter relative",
-          isBook ? "-mt-[42vh] md:-mt-[34vh] lg:-mt-[330px]" : hasHero ? "-mt-[34vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2",
+          isBook ? "-mt-[46vh] md:-mt-[34vh] lg:-mt-[330px]" : hasHero ? "-mt-[42vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2",
         )}
       >
         <div className="flex flex-col items-center gap-5 text-center md:flex-row md:items-end md:gap-8 md:text-left">
@@ -149,17 +149,17 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             <BookCover
               src={detail.artworkUrl}
               title={detail.title}
-              sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 50vw"
-              className="w-[42vw] max-w-[190px] md:w-[220px] md:max-w-none lg:w-[248px]"
+              sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 58vw"
+              className="w-[58vw] max-w-[250px] md:w-[220px] md:max-w-none lg:w-[248px]"
             />
           ) : (
           <div
             className={cn(
-              "relative w-[40vw] max-w-[170px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
+              "relative w-[56vw] max-w-[240px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
               "aspect-[2/3]",
             )}
           >
-            <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 40vw" priority />
+            <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 56vw" priority />
           </div>
           )}
           <div className="min-w-0 max-md:w-full md:pb-2">
