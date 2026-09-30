@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { getMediaDetail, ProviderError, resolveBookIsbn } from "@/lib/providers";
+import { getMediaDetail, getSeason, ProviderError, resolveBookIsbn } from "@/lib/providers";
 import { getLibraryIndex, getLibraryItem } from "@/lib/library/queries";
 import { cardFromItem, cardFromResult, type CardData } from "@/lib/media/card";
 import { yearFrom } from "@/lib/media/format";
@@ -15,6 +15,7 @@ import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
 import { TimeToBeat, WhereToBuy } from "./game-extras";
 import { WhereToWatch } from "./where-to-watch";
+import { EpisodeTracker } from "./episode-tracker";
 import { getUser } from "@/lib/supabase/server";
 import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
 import { cn } from "@/lib/utils";
@@ -175,6 +176,15 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             </section>
           ) : null}
 
+          {type === "tv" && detail.seasons && detail.seasons.length > 0 && (
+            <EpisodeTracker
+              show={card}
+              seasons={detail.seasons}
+              initialSeason={await initialSeason(id, detail.seasons, item)}
+              watched={item?.progress?.kind === "episode" ? item.progress.watched ?? {} : {}}
+              ended={Boolean(detail.ended)}
+            />
+          )}
           {detail.watch && <WhereToWatch watch={detail.watch} services={(await getUser())?.services ?? []} />}
           {detail.timeToBeat && <TimeToBeat data={detail.timeToBeat} />}
           {detail.stores && detail.stores.length > 0 && <WhereToBuy stores={detail.stores} />}
@@ -260,6 +270,18 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
       </div>
     </article>
   );
+}
+
+/** Open on the season with the next unwatched episode (or the first season). */
+async function initialSeason(id: string, seasons: NonNullable<MediaDetail["seasons"]>, item: LibraryItem | null) {
+  const next = item?.progress?.kind === "episode" ? item.progress.season : null;
+  const target = seasons.find((s) => s.number === next) ?? seasons.find((s) => s.number > 0) ?? seasons[0];
+  if (!target) return null;
+  try {
+    return await getSeason(id, target.number);
+  } catch {
+    return null;
+  }
 }
 
 function Unavailable({ type, id }: { type: MediaType; id: string }) {

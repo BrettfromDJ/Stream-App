@@ -61,6 +61,10 @@ export interface MediaDetail extends MediaSearchResult {
   timeToBeat?: { entries: { label: string; hours: number }[]; submissions: number | null } | null;
   /** Games: official store pages, with a live price where available. */
   stores?: { name: string; url: string; price?: string | null; originalPrice?: string | null; discount?: number | null }[];
+  /** TV: season list (episodes load per season). */
+  seasons?: SeasonSummary[];
+  /** TV: whether the show has finished airing. */
+  ended?: boolean;
   /** Movies & TV: where it's available in the US (TMDB / JustWatch). */
   watch?: WatchAvailability | null;
   /** Linkable people shown in the header (e.g. book authors → author pages). */
@@ -106,7 +110,18 @@ export interface LibraryItem {
  * Not tracked in the MVP, but the Continue card already knows how to render it.
  */
 export type MediaProgress =
-  | { kind: "episode"; season: number; episode: number; percent?: number }
+  | {
+      kind: "episode";
+      /** Next episode to watch (or the last one, once everything is watched). */
+      season: number;
+      episode: number;
+      percent?: number;
+      /** Watched episode numbers by season number, e.g. { "1": [1, 2, 3] }. */
+      watched?: Record<string, number[]>;
+      watchedCount?: number;
+      total?: number;
+      done?: boolean;
+    }
   | { kind: "page"; page: number; totalPages?: number; percent?: number }
   | { kind: "hours"; hours: number; percent?: number }
   | { kind: "percent"; percent: number };
@@ -150,4 +165,27 @@ export interface WatchAvailability {
   free: WatchProvider[];
   rent: WatchProvider[];
   buy: WatchProvider[];
+}
+
+export interface SeasonSummary {
+  number: number;
+  name: string;
+  episodeCount: number;
+  airDate: string | null;
+  posterUrl: string | null;
+}
+
+export interface Episode {
+  number: number;
+  name: string;
+  overview: string | null;
+  airDate: string | null;
+  runtime: number | null;
+  stillUrl: string | null;
+}
+
+export interface SeasonDetail {
+  number: number;
+  name: string;
+  episodes: Episode[];
 }

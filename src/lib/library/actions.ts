@@ -137,3 +137,99 @@ export async function removeFromLibrary(id: string): Promise<ActionResult> {
   refresh();
   return { ok: true, data: null };
 }
+
+/* ------------------------------------------------------------- episodes */
+
+export interface EpisodeUpdate {
+  show: MediaSnapshot;
+  season: number;
+  episodes: number[];
+  watched: boolean;
+  /** Episode counts per regular season (season 0 / specials excluded). */
+  seasonCounts: Record<string, number>;
+  ended: boolean;
+}
+
+type EpisodeProgress = Extract<NonNullable<LibraryItem["progress"]>, { kind: "episode" }>;
+
+function computeProgress(watched: Record<string, number[]>, counts: Record<string, number>): EpisodeProgress {
+  const seasons = Object.keys(counts)
+    .map(Number)
+    .filter((n) => n > 0 && counts[n] > 0)
+    .sort((a, b) => a - b);
+  const total = seasons.reduce((n, s) => n + counts[s], 0);
+  let watchedCount = 0;
+  let next: { season: number; episode: number } | null = null;
+  let last = { season: seasons[0] ?? 1, episode: 1 };
+  for (const s of seasons) {
+    const set = new Set(watched[String(s)] ?? []);
+    for (let e = 1; e <= counts[s]; e++) {
+      if (set.has(e)) {
+        watchedCount++;
+        last = { season: s, episode: e };
+      } else if (!next) next = { season: s, episode: e };
+    }
+  }
+  const done = total > 0 && watchedCount >= total;
+  const at = done ? last : next ?? last;
+  return {
+    kind: "episode",
+    season: at.season,
+    episode: at.episode,
+    watched,
+    watchedCount,
+    total,
+    done,
+    percent: total ? Math.round((watchedCount / total) * 100) : 0,
+  };
+}
+
+/** Marks episodes watched/unwatched, adding the show to the library if needed. */
+export async function setEpisodes(input: EpisodeUpdate): Promise<ActionResult<LibraryItem>> {
+  const { show, season, episodes, watched } = input;
+  if (show?.type !== "tv" || !Number.isInteger(season) || !Array.isArray(episodes) || episodes.length > 500) {
+    return fail("invalid", "Something about that episode looks off.");
+  }
+  const ctx = await context();
+  if (ctx.err) return ctx.err;
+
+  const { data: existing } = await ctx.supabase
+    .from("library_items")
+    .select(LIBRARY_COLUMNS)
+    .eq("media_type", "tv")
+    .eq("external_id", show.externalId)
+    .maybeSingle();
+
+  let row = existing as LibraryRow | null;
+  if (!row) {
+    if (!watched) return fail("not_found", "That show isn't in your library.");
+    const added = await addToLibrary(show, "in_progress");
+    if (!added.ok) return added;
+    const { data } = await ctx.supabase.from("library_items").select(LIBRARY_COLUMNS).eq("id", added.data.id).single();
+    row = data as LibraryRow;
+  }
+
+  const prev = row.progress?.kind === "episode" ? row.progress.watched ?? {} : {};
+  const map: Record<string, number[]> = { ...prev };
+  const set = new Set(map[String(season)] ?? []);
+  for (const e of episodes) {
+    if (!Number.isInteger(e) || e < 1 || e >= 10000) continue;
+    if (watched) set.add(e);
+    else set.delete(e);
+  }
+  map[String(season)] = [...set].sort((a, b) => a - b);
+  if (!map[String(season)].length) delete map[String(season)];
+
+  const counts = Object.fromEntries(
+    Object.entries(input.seasonCounts ?? {}).filter(([k, v]) => /^\d+$/.test(k) && Number.isInteger(v) && v >= 0 && v < 10000),
+  );
+  const progress = computeProgress(map, counts);
+
+  // Watching something moves it to "in progress"; finishing an ended show completes it.
+  let status = row.status;
+  if (progress.watchedCount && status === "backlog") status = "in_progress";
+  if (progress.done && input.ended && status !== "completed") status = "completed";
+  if (!progress.done && status === "completed" && !watched) status = "in_progress";
+
+  return updateItem(row.id, { progress, status });
+}

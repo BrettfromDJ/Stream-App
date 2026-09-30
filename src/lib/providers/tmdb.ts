@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, WatchAvailability, WatchProvider } from "@/lib/media/types";
+import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, SeasonDetail, SeasonSummary, WatchAvailability, WatchProvider } from "@/lib/media/types";
 import { formatDate, formatRuntime, yearFrom } from "@/lib/media/format";
 import { ProviderError, fetchJson } from "./http";
 
@@ -126,6 +126,7 @@ interface TmdbTvDetail extends TmdbDetailCommon {
   networks?: { name: string }[];
   created_by?: { name: string }[];
   next_episode_to_air?: { air_date?: string; season_number: number; episode_number: number } | null;
+  seasons?: { season_number: number; name?: string; episode_count?: number; air_date?: string | null; poster_path?: string | null }[];
   content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
 }
 
@@ -322,6 +323,8 @@ export async function getTv(id: string): Promise<MediaDetail> {
     watch: watchOf(d),
     related: normalizeList(d.recommendations?.results, "tv").slice(0, 18),
     score: score(d),
+    seasons: seasonsOf(d),
+    ended: d.in_production === false || /ended|canceled/i.test(d.status ?? ""),
     metadata: {
       genres: d.genres?.map((g) => g.name) ?? [],
       seasons,
@@ -463,4 +466,52 @@ export async function popularOnServices(ids: number[], sort: "popular" | "new" =
     if (movies.items[i]) out.push(movies.items[i]);
   }
   return out;
+}
+
+/* ----------------------------------------------------------------- seasons */
+
+function seasonsOf(d: TmdbTvDetail): SeasonSummary[] {
+  const list = (d.seasons ?? [])
+    .filter((s) => (s.episode_count ?? 0) > 0)
+    .map((s) => ({
+      number: s.season_number,
+      name: s.name || (s.season_number === 0 ? "Specials" : `Season ${s.season_number}`),
+      episodeCount: s.episode_count ?? 0,
+      airDate: s.air_date ?? null,
+      posterUrl: image(s.poster_path),
+    }));
+  // Regular seasons first, specials last.
+  return [...list.filter((s) => s.number > 0), ...list.filter((s) => s.number === 0)];
+}
+
+interface TmdbSeason {
+  season_number: number;
+  name?: string;
+  episodes?: {
+    episode_number: number;
+    name?: string;
+    overview?: string;
+    air_date?: string | null;
+    runtime?: number | null;
+    still_path?: string | null;
+  }[];
+}
+
+export async function getSeason(showId: string, season: number): Promise<SeasonDetail> {
+  if (!/^\d+$/.test(showId) || !Number.isInteger(season) || season < 0 || season > 200) {
+    throw new ProviderError("tmdb", "not_found");
+  }
+  const s = await tmdb<TmdbSeason>(`/tv/${showId}/season/${season}`, {}, 60 * 60 * 6);
+  return {
+    number: s.season_number,
+    name: s.name || `Season ${season}`,
+    episodes: (s.episodes ?? []).map((e) => ({
+      number: e.episode_number,
+      name: e.name || `Episode ${e.episode_number}`,
+      overview: e.overview || null,
+      airDate: e.air_date ?? null,
+      runtime: e.runtime ?? null,
+      stillUrl: e.still_path ? `${IMG}${e.still_path}` : null,
+    })),
+  };
 }

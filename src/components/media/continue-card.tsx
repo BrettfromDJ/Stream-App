@@ -14,7 +14,8 @@ export function progressLabel(p?: MediaProgress | null): string | null {
   if (!p) return null;
   switch (p.kind) {
     case "episode":
-      return `S${p.season} · E${p.episode}`;
+      if (p.done) return "All caught up";
+      return p.watchedCount ? `Next: S${p.season} E${p.episode}` : `Start with S${p.season} E${p.episode}`;
     case "page":
       return p.totalPages ? `Page ${p.page} of ${p.totalPages}` : `Page ${p.page}`;
     case "hours":
