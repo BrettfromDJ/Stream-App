@@ -9,6 +9,7 @@ type Items = MediaSearchResult[] | Promise<MediaSearchResult[]>;
 
 interface DiscoverRowProps {
   title: string;
+  subtitle?: string;
   items: Items;
   variant?: "poster" | "ranked" | "countdown";
   /** Show release dates on the posters (upcoming rows). */
@@ -29,7 +30,7 @@ function dateBadge(date?: string | null) {
 }
 
 /** A discovery carousel. Renders nothing when its source is empty or unavailable. */
-export async function DiscoverRow({ title, items, variant = "poster", dates, href, limit }: DiscoverRowProps) {
+export async function DiscoverRow({ title, subtitle, items, variant = "poster", dates, href, limit }: DiscoverRowProps) {
   const [list, index] = await Promise.all([items, getLibraryIndex()]);
   const shown = (variant === "ranked" ? list.slice(0, 10) : list).slice(0, limit ?? 24);
   if (shown.length < 3) return null;
@@ -45,7 +46,7 @@ export async function DiscoverRow({ title, items, variant = "poster", dates, hre
   }
 
   return (
-    <Row title={title} href={href} size={variant === "ranked" ? "ranked" : "poster"}>
+    <Row title={title} subtitle={subtitle} href={href} size={variant === "ranked" ? "ranked" : "poster"}>
       {shown.map((item, i) => (
         <MediaCard
           key={`${item.type}-${item.externalId}`}

@@ -14,6 +14,9 @@ import { ReleaseCalendar } from "@/components/discover/release-calendar";
 import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
 import { CollectionRow, presetItems } from "@/components/explore/collection-row";
 import { ServiceRows } from "@/components/explore/service-rows";
+import { PickedForYou } from "@/components/discover/picked-for-you";
+import { DiscoverActions } from "@/components/discover/discover-actions";
+
 
 export const metadata: Metadata = { title: "Movies & TV" };
 
@@ -42,7 +45,11 @@ export default function WatchPage() {
           <Lazy>
             <DiscoverRow title="Top 10 Movies This Week" items={w.topMovies()} variant="ranked" />
           </Lazy>
+          <DiscoverActions types={["movie", "tv"]} label="movies & shows" />
           <GenreTiles title="Browse by Genre" tiles={genreTilesFor("movie")} allHref={exploreHref({ type: "movie" })} />
+          <Lazy>
+            <PickedForYou types={["movie", "tv"]} />
+          </Lazy>
           <Lazy>
             <DiscoverRow title="Top 10 Shows This Week" items={w.topShows()} variant="ranked" />
           </Lazy>

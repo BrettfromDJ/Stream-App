@@ -65,7 +65,7 @@ export function cardFromResult(result: MediaSearchResult, index?: LibraryIndex):
 export function snapshotOf(card: CardData | MediaSearchResult): MediaSnapshot {
   // Only a few metadata keys are worth persisting.
   const meta = card.metadata ?? {};
-  const keep = ["genres", "platforms", "authors", "pages", "runtime", "seasons", "episodes", "director", "network", "developers"];
+  const keep = ["genres", "genreIds", "platforms", "authors", "pages", "runtime", "seasons", "episodes", "director", "network", "developers"];
   const metadata = Object.fromEntries(Object.entries(meta).filter(([k, v]) => keep.includes(k) && v != null));
   return {
     type: card.type,

@@ -25,6 +25,7 @@ interface TmdbListItem {
   overview?: string;
   vote_average?: number;
   popularity?: number;
+  genre_ids?: number[];
 }
 
 interface TmdbPaged<T> {
@@ -163,7 +164,10 @@ function normalize(item: TmdbListItem, kind: TmdbKind): MediaSearchResult {
     artworkUrl: image(item.poster_path),
     backdropUrl: image(item.backdrop_path),
     description: item.overview || null,
-    metadata: item.vote_average ? { voteAverage: item.vote_average } : undefined,
+    metadata: {
+      ...(item.vote_average ? { voteAverage: item.vote_average } : {}),
+      ...(item.genre_ids?.length ? { genreIds: item.genre_ids } : {}),
+    },
   };
 }
 

@@ -12,6 +12,7 @@ import { DiscoveryRows } from "@/components/home/discovery-rows";
 import { HomeEmpty } from "@/components/home/home-empty";
 import { ErrorNotice } from "@/components/ui/error-notice";
 import { PreviewBanner } from "@/components/profile/preview-banner";
+import { DiscoverActions } from "@/components/discover/discover-actions";
 
 export default async function HomePage() {
   const library = await getLibrary();
@@ -62,6 +63,7 @@ export default async function HomePage() {
               <p className="text-[13px] font-semibold tracking-[0.08em] text-fg-3 uppercase">Discover</p>
             </div>
           )}
+          <DiscoverActions types={["movie", "tv", "book", "game"]} label="anything" />
           <DiscoveryRows />
         </div>
       </div>
