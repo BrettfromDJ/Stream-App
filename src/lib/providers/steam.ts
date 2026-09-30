@@ -27,7 +27,7 @@ interface Featured {
 }
 
 interface MostPlayed {
-  response?: { ranks?: { rank: number; appid: number; peak_in_game?: number }[] };
+  response?: { ranks?: { rank: number; appid: number; peak_in_game?: number; last_week_rank?: number }[] };
 }
 
 export interface SteamCharts {
@@ -125,7 +125,17 @@ export async function steamCharts(): Promise<SteamCharts> {
     mostPlayed: ranks.flatMap((r) => {
       const g = igdb.get(String(r.appid));
       if (!g) return [];
-      return [{ ...g, metadata: { ...g.metadata, ...(r.peak_in_game ? { badge: `${compact.format(r.peak_in_game)} playing` } : {}) } }];
+      return [
+        {
+          ...g,
+          metadata: {
+            ...g.metadata,
+            rank: r.rank,
+            lastRank: r.last_week_rank ?? 0,
+            ...(r.peak_in_game ? { badge: `${compact.format(r.peak_in_game)} playing` } : {}),
+          },
+        },
+      ];
     }),
   };
 }

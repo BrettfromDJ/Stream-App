@@ -515,3 +515,14 @@ export async function getSeason(showId: string, season: number): Promise<SeasonD
     })),
   };
 }
+
+/** Series premiering in the next few months, most anticipated first. */
+export async function upcomingTv() {
+  const data = await tmdb<TmdbPaged<TmdbListItem>>("/discover/tv", {
+    "first_air_date.gte": today(),
+    "first_air_date.lte": new Date(Date.now() + 120 * 86_400_000).toISOString().slice(0, 10),
+    sort_by: "popularity.desc",
+    with_original_language: "en",
+  });
+  return normalizeList(data.results, "tv");
+}

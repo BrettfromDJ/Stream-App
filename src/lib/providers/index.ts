@@ -158,6 +158,7 @@ export const browse = {
     newToStreaming: () => safely(tmdb.newToStreaming, []),
     inTheaters: () => safely(tmdb.nowPlayingMovies, []),
     comingSoon: () => safely(tmdb.comingSoonMovies, []),
+    upcomingTv: () => safely(tmdb.upcomingTv, []),
     airing: () => safely(tmdb.airingTv, []),
     topRatedMovies: () => safely(tmdb.topRatedMovies, []),
     topRatedShows: () => safely(tmdb.topRatedTv, []),

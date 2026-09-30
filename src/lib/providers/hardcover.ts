@@ -183,7 +183,7 @@ interface HcRelatedBook extends HcBook {
   users_count?: number | null;
 }
 
-const RELATED_FIELDS = `${LIST_FIELDS} users_count`;
+const RELATED_FIELDS = `${LIST_FIELDS} users_count description`;
 
 /** Hardcover lists some editions as separate books; keep the most-read one per title. */
 function dedupeByTitle(books: HcRelatedBook[]) {

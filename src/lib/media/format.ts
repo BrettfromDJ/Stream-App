@@ -76,3 +76,8 @@ export function cleanDescription(text?: string | null): string | null {
     .trim();
   return cleaned || null;
 }
+
+/** Days since the epoch — for "pick of the day" rotation that stays stable within a day. */
+export function dayNumber() {
+  return Math.floor(Date.now() / 86_400_000);
+}

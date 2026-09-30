@@ -16,6 +16,7 @@ interface NytBook {
   primary_isbn10?: string;
   description?: string;
   weeks_on_list?: number;
+  rank_last_week?: number;
 }
 
 interface NytList {
@@ -78,7 +79,7 @@ export async function bestsellers(): Promise<BestsellerList[]> {
         artworkUrl: b.book_image?.startsWith("https://") ? b.book_image : null,
         backdropUrl: null,
         description: b.description || null,
-        metadata: { authors: b.author ? [b.author] : [], weeksOnList: b.weeks_on_list ?? null },
+        metadata: { authors: b.author ? [b.author] : [], weeksOnList: b.weeks_on_list ?? null, rank: b.rank, lastRank: b.rank_last_week ?? 0 },
       }));
     return [{ key: code, title, books }];
   });

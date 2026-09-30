@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { browse } from "@/lib/providers";
+import { exploreHref } from "@/lib/discover/taxonomy";
 import { DiscoverRow } from "@/components/discover/discover-row";
 import { Hero } from "@/components/discover/hero";
 import { HeroSkeleton } from "@/components/discover/hero-carousel";
 import { Lazy, Rows } from "@/components/discover/sections";
+import { ChartList } from "@/components/discover/chart-list";
+import { GridBlock } from "@/components/discover/grid-block";
+import { Spotlight } from "@/components/discover/spotlight";
+import { ReleaseCalendar } from "@/components/discover/release-calendar";
 import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
-import { CollectionRow } from "@/components/explore/collection-row";
-import { exploreHref } from "@/lib/discover/taxonomy";
-
+import { CollectionRow, presetItems } from "@/components/explore/collection-row";
 
 export const metadata: Metadata = { title: "Books" };
 
@@ -30,33 +33,38 @@ export default function BooksPage() {
         />
       </Suspense>
 
-      <div className="mt-8 md:-mt-6 md:relative md:z-10">
+      <div className="mt-8 md:relative md:z-10 md:-mt-6">
         <Rows>
           <Lazy>
             <DiscoverRow title="What People Are Reading" items={trending.then((t) => t.slice(5))} />
           </Lazy>
           <Lazy>
-            <Bestsellers charts={charts} index={0} />
+            <Bestsellers charts={charts} index={0} layout="chart" />
           </Lazy>
           <GenreTiles title="Browse by Genre" tiles={genreTilesFor("book")} allHref={exploreHref({ type: "book" })} />
           <Lazy>
-            <DiscoverRow title="New & Notable" items={hub.then((h) => h.newReleases)} href={exploreHref({ type: "book", sort: "new" })} />
+            <GridBlock
+              title="New & Notable"
+              subtitle="Recent releases readers are picking up"
+              items={hub.then((h) => h.newReleases)}
+              href={exploreHref({ type: "book", sort: "new" })}
+            />
           </Lazy>
           <Lazy>
-            <Bestsellers charts={charts} index={1} />
-          </Lazy>
-          <Lazy>
-            <DiscoverRow title="Most Anticipated" items={hub.then((h) => h.anticipated)} dates />
+            <Bestsellers charts={charts} index={1} layout="chart" />
           </Lazy>
           <MoodTiles title="What Are You in the Mood For?" tiles={moodTilesFor(["book"])} />
+          <Lazy>
+            <Spotlight eyebrow="Hidden Gem of the Day" items={presetItems("book", "hidden-gems")} />
+          </Lazy>
+          <Lazy>
+            <ReleaseCalendar title="Coming Soon" items={hub.then((h) => h.anticipated)} months={6} />
+          </Lazy>
           <Lazy>
             <DiscoverRow title="Highest Rated This Year" items={hub.then((h) => h.topThisYear)} />
           </Lazy>
           <Lazy>
             <CollectionRow type="book" preset="short-reads" />
-          </Lazy>
-          <Lazy>
-            <CollectionRow type="book" preset="hidden-gems" />
           </Lazy>
           <Lazy>
             <CollectionRow type="book" preset="book-club" />
@@ -65,7 +73,10 @@ export default function BooksPage() {
             <DiscoverRow title="Trending Today on Open Library" items={b.trendingToday()} />
           </Lazy>
           <Lazy>
-            <Bestsellers charts={charts} index={2} />
+            <Bestsellers charts={charts} index={2} layout="ranked" />
+          </Lazy>
+          <Lazy>
+            <CollectionRow type="book" preset="hidden-gems" />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Fantasy" items={genres.then((g) => g.fantasy)} href={exploreHref({ type: "book", genre: "fantasy" })} />
@@ -88,8 +99,28 @@ export default function BooksPage() {
   );
 }
 
-async function Bestsellers({ charts, index }: { charts: ReturnType<typeof b.bestsellers>; index: number }) {
+async function Bestsellers({
+  charts,
+  index,
+  layout,
+}: {
+  charts: ReturnType<typeof b.bestsellers>;
+  index: number;
+  layout: "chart" | "ranked";
+}) {
   const list = (await charts)[index];
   if (!list) return null;
+  if (layout === "chart") {
+    return (
+      <ChartList
+        title={list.title}
+        items={list.books}
+        detail={(i) => {
+          const weeks = Number(i.metadata?.weeksOnList) || 0;
+          return weeks > 1 ? `${weeks} weeks on the list` : weeks === 1 ? "New this week" : null;
+        }}
+      />
+    );
+  }
   return <DiscoverRow title={list.title} items={list.books} variant="ranked" />;
 }

@@ -2,24 +2,27 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { browse } from "@/lib/providers";
 import { TYPE_LABEL } from "@/lib/media/labels";
+import { exploreHref } from "@/lib/discover/taxonomy";
 import { DiscoverRow } from "@/components/discover/discover-row";
 import { Hero } from "@/components/discover/hero";
 import { HeroSkeleton } from "@/components/discover/hero-carousel";
 import { Lazy, Rows } from "@/components/discover/sections";
 import { favoriteOf, notInLibrary } from "@/components/discover/personal";
+import { Spotlight } from "@/components/discover/spotlight";
+import { GridBlock } from "@/components/discover/grid-block";
+import { ReleaseCalendar } from "@/components/discover/release-calendar";
 import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
-import { CollectionRow } from "@/components/explore/collection-row";
+import { CollectionRow, presetItems } from "@/components/explore/collection-row";
 import { ServiceRows } from "@/components/explore/service-rows";
-import { exploreHref } from "@/lib/discover/taxonomy";
-
 
 export const metadata: Metadata = { title: "Movies & TV" };
 
 const w = browse.watch;
 
 export default function WatchPage() {
-  // Start every request at once; each row streams in as its data arrives.
+  // Start every request at once; each section streams in as its data arrives.
   const trending = w.trendingToday();
+  const upcoming = Promise.all([w.comingSoon(), w.upcomingTv()]).then(([m, t]) => [...m, ...t]);
   return (
     <div className="animate-fade-in">
       <Suspense fallback={<HeroSkeleton />}>
@@ -31,7 +34,7 @@ export default function WatchPage() {
         />
       </Suspense>
 
-      <div className="mt-8 md:-mt-6 md:relative md:z-10">
+      <div className="mt-8 md:relative md:z-10 md:-mt-6">
         <Rows>
           <Lazy>
             <BecauseYouLoved />
@@ -43,15 +46,20 @@ export default function WatchPage() {
           <Lazy>
             <DiscoverRow title="Top 10 Shows This Week" items={w.topShows()} variant="ranked" />
           </Lazy>
-          <MoodTiles title="What Are You in the Mood For?" tiles={moodTilesFor(["movie", "tv"])} />
-          <Lazy>
-            <DiscoverRow title="Trending Today" items={trending.then((t) => t.slice(6))} />
-          </Lazy>
           <Suspense fallback={null}>
             <ServiceRows />
           </Suspense>
           <Lazy>
-            <DiscoverRow title="New to Streaming" items={w.newToStreaming()} />
+            <Spotlight eyebrow="Hidden Gem of the Day" items={presetItems("movie", "hidden-gems")} />
+          </Lazy>
+          <MoodTiles title="What Are You in the Mood For?" tiles={moodTilesFor(["movie", "tv"])} />
+          <Lazy>
+            <GridBlock
+              title="New to Streaming"
+              subtitle="Just arrived to stream, rent or buy"
+              items={w.newToStreaming()}
+              href={exploreHref({ type: "movie", sort: "new" })}
+            />
           </Lazy>
           <Lazy>
             <DiscoverRow title="In Theaters Now" items={w.inTheaters()} />
@@ -63,19 +71,19 @@ export default function WatchPage() {
             <CollectionRow type="tv" preset="limited-series" />
           </Lazy>
           <Lazy>
-            <CollectionRow type="movie" preset="hidden-gems" />
-          </Lazy>
-          <Lazy>
-            <DiscoverRow title="Coming Soon to Theaters" items={w.comingSoon()} dates />
+            <ReleaseCalendar title="Release Calendar" items={upcoming} />
           </Lazy>
           <Lazy>
             <CollectionRow type="movie" preset="critics-darlings" />
           </Lazy>
           <Lazy>
-            <CollectionRow type="tv" preset="hidden-gems" />
+            <Spotlight eyebrow="A Show Worth Your Time" items={presetItems("tv", "hidden-gems")} />
           </Lazy>
           <Lazy>
             <DiscoverRow title="New Episodes This Week" items={w.airing()} />
+          </Lazy>
+          <Lazy>
+            <CollectionRow type="movie" preset="hidden-gems" />
           </Lazy>
           <Lazy>
             <DiscoverRow title="Sci-Fi Movies" items={w.movieGenre(878)} href={exploreHref({ type: "movie", genre: "scifi" })} />

@@ -4,6 +4,15 @@ import type { MediaType } from "@/lib/media/types";
 import { getUser } from "@/lib/supabase/server";
 import { DiscoverRow } from "@/components/discover/discover-row";
 
+/** First page of a curated preset (for spotlights and grids). */
+export async function presetItems(type: MediaType, preset: string) {
+  const p = presetFor(type, preset);
+  if (!p) return [];
+  const user = await getUser();
+  const { items } = await explore({ sort: "popular", ...p.query, type, preset: p.slug, page: 1 }, user?.services ?? []);
+  return items;
+}
+
 /** A row built from a curated Explore preset, with "See all" into the full Explore page. */
 export async function CollectionRow({ type, preset, title }: { type: MediaType; preset: string; title?: string }) {
   const p = presetFor(type, preset);
