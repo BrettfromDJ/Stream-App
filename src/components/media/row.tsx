@@ -18,7 +18,7 @@ interface RowProps {
 /** Section title + horizontally scrolling, snap-aligned carousel that bleeds to the screen edge. */
 export function Row({ title, subtitle, href, children, size = "poster", className }: RowProps) {
   return (
-    <section className={cn("relative", className)} aria-label={title}>
+    <section className={cn("cv-auto relative", className)} aria-label={title}>
       <div className="gutter mb-3 flex items-center justify-between">
         {href ? (
           <Link href={href} className="group/title -my-1 inline-flex items-center gap-0.5 py-1">

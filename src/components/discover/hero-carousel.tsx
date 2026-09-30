@@ -63,7 +63,7 @@ export function HeroCarousel({ items }: { items: HeroItem[] }) {
       <div className="no-scrollbar gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pt-[calc(var(--nav-h)+0.75rem)] md:hidden">
         {items.map((item, i) => (
           <article key={item.card.externalId} className="relative aspect-[4/5] w-[86vw] max-w-[420px] shrink-0 snap-center overflow-hidden rounded-[24px] bg-elevated-2 ring-1 ring-white/10">
-            <Artwork src={item.card.artworkUrl ?? item.card.backdropUrl} title={item.card.title} type={item.card.type} sizes="90vw" priority={i === 0} compactFallback />
+            <Artwork src={item.card.artworkUrl ?? item.card.backdropUrl} title={item.card.title} type={item.card.type} sizes="60vw" priority={i === 0} compactFallback />
             <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
             <div className="absolute inset-x-0 bottom-0 p-4">
               {item.eyebrow && <p className="text-[11.5px] font-bold tracking-[0.1em] text-fg-2 uppercase">{item.eyebrow}</p>}

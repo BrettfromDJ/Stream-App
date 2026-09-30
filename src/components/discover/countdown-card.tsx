@@ -91,7 +91,7 @@ export function CountdownCard({ media }: { media: CardData }) {
         )}
 
         {media.releaseDate && (
-          <span className="glass-chip absolute top-3 left-3 rounded-full px-2.5 py-1 text-[12px] font-semibold md:top-4 md:left-4">
+          <span className="chip-solid absolute top-3 left-3 rounded-full px-2.5 py-1 text-[12px] font-semibold md:top-4 md:left-4">
             {DATE.format(new Date(releaseTime(media.releaseDate)))}
           </span>
         )}
@@ -100,7 +100,7 @@ export function CountdownCard({ media }: { media: CardData }) {
           <p className="line-clamp-1 text-[18px] leading-tight font-semibold tracking-[-0.02em] md:text-[20px]">{media.title}</p>
           <div className="mt-2.5 flex gap-1.5" aria-label="Time until release">
             {(parts ?? [null, null, null, null]).map((p, i) => (
-              <div key={i} className="glass-chip min-w-[3.25rem] rounded-[10px] px-2 py-1.5 text-center">
+              <div key={i} className="chip-solid min-w-[3.25rem] rounded-[10px] px-2 py-1.5 text-center">
                 <p className="text-[18px] leading-none font-bold tracking-[-0.02em] tabular-nums md:text-[20px]">
                   {p ? String(p.value).padStart(i === 0 ? 1 : 2, "0") : "–"}
                 </p>

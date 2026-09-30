@@ -6,7 +6,7 @@ export function RatingBadge({ rating, className }: { rating: number; className?:
   return (
     <span
       className={cn(
-        "glass-chip inline-flex h-6 items-center gap-1 rounded-full px-2 text-[12px] font-semibold tabular-nums text-fg",
+        "chip-solid inline-flex h-6 items-center gap-1 rounded-full px-2 text-[12px] font-semibold tabular-nums text-fg",
         className,
       )}
       aria-label={`Rated ${formatRating(rating)} out of 5`}

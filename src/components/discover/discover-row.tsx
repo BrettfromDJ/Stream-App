@@ -32,7 +32,7 @@ function dateBadge(date?: string | null) {
 /** A discovery carousel. Renders nothing when its source is empty or unavailable. */
 export async function DiscoverRow({ title, subtitle, items, variant = "poster", dates, href, limit }: DiscoverRowProps) {
   const [list, index] = await Promise.all([items, getLibraryIndex()]);
-  const shown = (variant === "ranked" ? list.slice(0, 10) : list).slice(0, limit ?? 24);
+  const shown = (variant === "ranked" ? list.slice(0, 10) : list).slice(0, limit ?? 16);
   if (shown.length < 3) return null;
 
   if (variant === "countdown") {

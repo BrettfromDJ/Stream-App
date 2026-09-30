@@ -21,7 +21,7 @@ export async function GridBlock({
   const shown = list.filter((i) => i.artworkUrl).slice(0, 12);
   if (shown.length < 6) return null;
   return (
-    <section aria-label={title} className="gutter">
+    <section aria-label={title} className="cv-auto gutter">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <h2 className="text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">{title}</h2>

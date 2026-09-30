@@ -46,7 +46,7 @@ export function MediaCard({ media, sizes, priority, className, showRating = true
           className={cn(
             "relative aspect-[2/3] overflow-hidden rounded-(--radius-card) bg-elevated-2",
             "shadow-[0_10px_30px_-12px_rgba(0,0,0,0.8)] ring-1 ring-white/[0.06]",
-            "transition-transform duration-300 ease-(--ease-out-soft) will-change-transform",
+            "transition-transform duration-300 ease-(--ease-out-soft)",
             "group-hover/card:scale-[1.035] group-active/card:scale-[0.97]",
           )}
         >
@@ -63,12 +63,12 @@ export function MediaCard({ media, sizes, priority, className, showRating = true
           ) : null}
           {showRating && media.rating ? <RatingBadge rating={media.rating} className="absolute bottom-2 left-2" /> : null}
           {badge ? (
-            <span className="glass-chip absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[11.5px] font-semibold tracking-tight text-fg">
+            <span className="chip-solid absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[11.5px] font-semibold tracking-tight text-fg">
               {badge}
             </span>
           ) : null}
           {showInLibrary && media.status ? (
-            <span className="glass-chip absolute top-2 left-2 grid size-6 place-items-center rounded-full" aria-label="In your library">
+            <span className="chip-solid absolute top-2 left-2 grid size-6 place-items-center rounded-full" aria-label="In your library">
               <Check className="size-3.5" strokeWidth={2.5} />
             </span>
           ) : null}

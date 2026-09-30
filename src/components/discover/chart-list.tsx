@@ -41,7 +41,7 @@ export async function ChartList({
   const list = (await items).slice(0, limit);
   if (list.length < 5) return null;
   return (
-    <section aria-label={title} className="gutter">
+    <section aria-label={title} className="cv-auto gutter">
       <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">{title}</h2>
       <ol className="grid gap-x-8 md:grid-cols-2">
         {list.map((item, i) => {
