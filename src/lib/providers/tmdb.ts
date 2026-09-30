@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo } from "@/lib/media/types";
+import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, WatchAvailability, WatchProvider } from "@/lib/media/types";
 import { formatDate, formatRuntime, yearFrom } from "@/lib/media/format";
 import { ProviderError, fetchJson } from "./http";
 
@@ -52,6 +52,38 @@ interface TmdbDetailCommon {
   recommendations?: TmdbPaged<TmdbListItem>;
   similar?: TmdbPaged<TmdbListItem>;
   videos?: { results: TmdbVideo[] };
+  "watch/providers"?: { results?: Record<string, TmdbWatchRegion> };
+}
+
+interface TmdbProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path?: string | null;
+  display_priority?: number;
+}
+
+interface TmdbWatchRegion {
+  link?: string;
+  flatrate?: TmdbProvider[];
+  free?: TmdbProvider[];
+  ads?: TmdbProvider[];
+  rent?: TmdbProvider[];
+  buy?: TmdbProvider[];
+}
+
+const providerOf = (p: TmdbProvider): WatchProvider => ({
+  id: p.provider_id,
+  name: p.provider_name,
+  logoUrl: p.logo_path ? `${IMG}${p.logo_path}` : null,
+});
+
+function watchOf(d: TmdbDetailCommon, region = "US"): WatchAvailability | null {
+  const r = d["watch/providers"]?.results?.[region];
+  if (!r) return null;
+  const list = (l?: TmdbProvider[]) =>
+    (l ?? []).sort((a, b) => (a.display_priority ?? 99) - (b.display_priority ?? 99)).map(providerOf);
+  const out = { link: r.link ?? null, stream: list(r.flatrate), free: list([...(r.free ?? []), ...(r.ads ?? [])]), rent: list(r.rent), buy: list(r.buy) };
+  return out.stream.length || out.free.length || out.rent.length || out.buy.length ? out : null;
 }
 
 interface TmdbVideo {
@@ -216,7 +248,7 @@ function facts(pairs: [string, string | number | null | undefined | false][]): M
 export async function getMovie(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbMovieDetail>(
     `/movie/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,release_dates,videos", include_video_language: "en,null" },
+    { append_to_response: "credits,recommendations,release_dates,videos,watch/providers", include_video_language: "en,null" },
     60 * 60 * 24,
   );
   const base = normalize({ ...d, id: d.id }, "movie");
@@ -244,6 +276,7 @@ export async function getMovie(id: string): Promise<MediaDetail> {
     ]),
     cast: castOf(d.credits),
     videos: videosOf(d),
+    watch: watchOf(d),
     related: normalizeList(d.recommendations?.results, "movie").slice(0, 18),
     score: score(d),
     metadata: { genres: d.genres?.map((g) => g.name) ?? [], runtime: d.runtime ?? null, director },
@@ -253,7 +286,7 @@ export async function getMovie(id: string): Promise<MediaDetail> {
 export async function getTv(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbTvDetail>(
     `/tv/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,content_ratings,videos", include_video_language: "en,null" },
+    { append_to_response: "credits,recommendations,content_ratings,videos,watch/providers", include_video_language: "en,null" },
     60 * 60 * 12,
   );
   const base = normalize({ ...d, id: d.id }, "tv");
@@ -286,6 +319,7 @@ export async function getTv(id: string): Promise<MediaDetail> {
     ]),
     cast: castOf(d.credits),
     videos: videosOf(d),
+    watch: watchOf(d),
     related: normalizeList(d.recommendations?.results, "tv").slice(0, 18),
     score: score(d),
     metadata: {
@@ -383,4 +417,50 @@ export async function discoverTmdb(kind: TmdbKind, params: Record<string, string
     items: normalizeList(data.results, kind),
     hasMore: page < Math.min(data.total_pages ?? 1, 50),
   };
+}
+
+/* ------------------------------------------------------ streaming services */
+
+/** Streaming services available in the US, most prominent first (for the settings picker). */
+export async function watchProviders(): Promise<WatchProvider[]> {
+  const [movie, tv] = await Promise.all([
+    tmdb<{ results: (TmdbProvider & { display_priorities?: Record<string, number> })[] }>("/watch/providers/movie", { watch_region: "US" }, 60 * 60 * 24 * 7),
+    tmdb<{ results: (TmdbProvider & { display_priorities?: Record<string, number> })[] }>("/watch/providers/tv", { watch_region: "US" }, 60 * 60 * 24 * 7),
+  ]);
+  const byId = new Map<number, TmdbProvider & { display_priorities?: Record<string, number> }>();
+  for (const p of [...tv.results, ...movie.results]) if (!byId.has(p.provider_id)) byId.set(p.provider_id, p);
+  return [...byId.values()]
+    .sort((a, b) => (a.display_priorities?.US ?? 999) - (b.display_priorities?.US ?? 999))
+    // Skip "with ads"/channel duplicates like "Netflix basic with Ads" or "Amazon Channel" add-ons.
+    .filter((p) => !/with ads|amazon channel|roku premium channel|apple tv channel/i.test(p.provider_name))
+    .slice(0, 40)
+    .map(providerOf);
+}
+
+/** Popular titles on one or more services (movies and shows interleaved). */
+export async function popularOnServices(ids: number[], sort: "popular" | "new" = "popular") {
+  if (!ids.length) return [];
+  const base = { with_watch_providers: ids.join("|"), watch_region: "US", with_watch_monetization_types: "flatrate|free|ads" };
+  const [movies, shows] = await Promise.all([
+    discoverTmdb(
+      "movie",
+      sort === "new"
+        ? { ...base, sort_by: "primary_release_date.desc", "primary_release_date.lte": today(), "vote_count.gte": "20" }
+        : { ...base, sort_by: "popularity.desc", "vote_count.gte": "50" },
+      1,
+    ),
+    discoverTmdb(
+      "tv",
+      sort === "new"
+        ? { ...base, sort_by: "first_air_date.desc", "first_air_date.lte": today(), "vote_count.gte": "10" }
+        : { ...base, sort_by: "popularity.desc", "vote_count.gte": "30" },
+      1,
+    ),
+  ]);
+  const out: MediaSearchResult[] = [];
+  for (let i = 0; i < 12; i++) {
+    if (shows.items[i]) out.push(shows.items[i]);
+    if (movies.items[i]) out.push(movies.items[i]);
+  }
+  return out;
 }

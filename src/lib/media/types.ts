@@ -61,6 +61,8 @@ export interface MediaDetail extends MediaSearchResult {
   timeToBeat?: { entries: { label: string; hours: number }[]; submissions: number | null } | null;
   /** Games: official store pages, with a live price where available. */
   stores?: { name: string; url: string; price?: string | null; originalPrice?: string | null; discount?: number | null }[];
+  /** Movies & TV: where it's available in the US (TMDB / JustWatch). */
+  watch?: WatchAvailability | null;
   /** Linkable people shown in the header (e.g. book authors → author pages). */
   creators?: { name: string; href: string }[];
   score?: { value: number; max: number; source: string } | null;
@@ -133,4 +135,19 @@ export interface AuthorProfile {
   series: { title: string; items: MediaSearchResult[] }[];
   all: MediaSearchResult[];
   source: "Hardcover" | "Open Library";
+}
+
+export interface WatchProvider {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+}
+
+export interface WatchAvailability {
+  /** JustWatch page listing every option. */
+  link: string | null;
+  stream: WatchProvider[];
+  free: WatchProvider[];
+  rent: WatchProvider[];
+  buy: WatchProvider[];
 }

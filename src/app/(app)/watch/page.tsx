@@ -9,6 +9,7 @@ import { Lazy, Rows } from "@/components/discover/sections";
 import { favoriteOf, notInLibrary } from "@/components/discover/personal";
 import { GenreTiles, MoodTiles, genreTilesFor, moodTilesFor } from "@/components/explore/tiles";
 import { CollectionRow } from "@/components/explore/collection-row";
+import { ServiceRows } from "@/components/explore/service-rows";
 import { exploreHref } from "@/lib/discover/taxonomy";
 
 
@@ -46,6 +47,9 @@ export default function WatchPage() {
           <Lazy>
             <DiscoverRow title="Trending Today" items={trending.then((t) => t.slice(6))} />
           </Lazy>
+          <Suspense fallback={null}>
+            <ServiceRows />
+          </Suspense>
           <Lazy>
             <DiscoverRow title="New to Streaming" items={w.newToStreaming()} />
           </Lazy>

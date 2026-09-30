@@ -14,6 +14,8 @@ import { LibraryPanel } from "@/components/library/library-panel";
 import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
 import { TimeToBeat, WhereToBuy } from "./game-extras";
+import { WhereToWatch } from "./where-to-watch";
+import { getUser } from "@/lib/supabase/server";
 import { PlayTrailerButton, VideoModal, VideoRow } from "./video-player";
 import { cn } from "@/lib/utils";
 
@@ -173,6 +175,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             </section>
           ) : null}
 
+          {detail.watch && <WhereToWatch watch={detail.watch} services={(await getUser())?.services ?? []} />}
           {detail.timeToBeat && <TimeToBeat data={detail.timeToBeat} />}
           {detail.stores && detail.stores.length > 0 && <WhereToBuy stores={detail.stores} />}
 

@@ -160,6 +160,8 @@ export const browse = {
     movieGenre: (id: number) => safely(() => tmdb.moviesByGenre(id), []),
     tvGenre: (id: number) => safely(() => tmdb.tvByGenre(id), []),
     recommendations: (kind: "movie" | "tv", id: string) => safely(() => tmdb.recommendationsFor(kind, id), []),
+    providers: () => safely(tmdb.watchProviders, []),
+    onServices: (ids: number[], sort: "popular" | "new" = "popular") => safely(() => tmdb.popularOnServices(ids, sort), []),
   },
   games: {
     hub: () => safely(igdb.gamesHub, EMPTY_GAMES),
