@@ -40,15 +40,15 @@ export function BookBackdrop({ cover, shelf }: { cover: string | null | undefine
   );
 }
 
-/** The cover drawn as a physical book: spine crease, page edges, and a glow in its own colors. */
+/** The cover drawn as a physical book: spine crease, page edges, and a soft shadow underneath. */
 export function BookCover({ src, title, sizes, className }: { src: string | null | undefined; title: string; sizes: string; className?: string }) {
   return (
     <div className={cn("relative aspect-[2/3] shrink-0", className)}>
-      {src && (
-        <div aria-hidden className="absolute inset-[6%] translate-y-[8%] scale-110 opacity-80 blur-2xl saturate-150">
-          <Image src={src} alt="" fill sizes="120px" className="object-cover" />
-        </div>
-      )}
+      {/* Soft contact shadow — a gradient, not a blur filter (iOS Safari renders blurred layers as hard boxes). */}
+      <div
+        aria-hidden
+        className="absolute inset-x-[-10%] -bottom-[9%] h-[18%] bg-[radial-gradient(closest-side,rgba(0,0,0,0.75),transparent)]"
+      />
       {/* Page edges peeking out on the right. */}
       <div
         aria-hidden
