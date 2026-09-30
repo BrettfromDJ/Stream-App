@@ -17,6 +17,7 @@ import { TimeToBeat, WhereToBuy } from "./game-extras";
 import { WhereToWatch } from "./where-to-watch";
 import { EpisodeTracker } from "./episode-tracker";
 import { ProgressTracker } from "./progress-tracker";
+import { BookBackdrop, BookCover } from "./book-hero";
 import { RemindMe } from "@/components/reminders/remind-me";
 import { FriendlyDate } from "@/components/ui/friendly-date";
 import { todayIso } from "@/lib/reminders/reminders";
@@ -96,6 +97,10 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
   const hero = detail.backdropUrl ?? null;
   const hasHero = Boolean(hero || detail.artworkUrl);
+  // Books get a cover-built header (no wide backdrop exists), centered on phones.
+  const isBook = type === "book" && !hero && Boolean(detail.artworkUrl);
+  const shelf = isBook ? (detail.relatedRows ?? []).flatMap((r) => r.items).filter((b) => b.externalId !== id) : [];
+  const center = isBook ? "max-md:justify-center" : "";
 
   return (
     <article className="relative animate-fade-in">
@@ -106,7 +111,9 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           hasHero ? "h-[min(62vh,560px)] md:h-[min(70vh,640px)]" : "h-[calc(var(--nav-h)+4.5rem)]",
         )}
       >
-        {hero ? (
+        {isBook ? (
+          <BookBackdrop cover={detail.artworkUrl} shelf={shelf} />
+        ) : hero ? (
           <Image src={hero} alt="" fill priority sizes="100vw" className="fade-to-bg object-cover object-top" />
         ) : detail.artworkUrl ? (
           <Image
@@ -118,16 +125,33 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             className="fade-to-bg scale-125 object-cover opacity-60 blur-3xl saturate-150"
           />
         ) : null}
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-bg/10" />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-bg/60 via-transparent to-transparent max-md:hidden" />
+        {!isBook && (
+          <>
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-bg/10" />
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-bg/60 via-transparent to-transparent max-md:hidden" />
+          </>
+        )}
         <div className="gutter absolute top-[calc(var(--nav-h)+0.75rem)] left-0">
           <BackButton />
         </div>
       </div>
 
       {/* Title block */}
-      <div className={cn("gutter relative", hasHero ? "-mt-[34vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2")}>
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:gap-8">
+      <div
+        className={cn(
+          "gutter relative",
+          isBook ? "-mt-[42vh] md:-mt-[34vh] lg:-mt-[330px]" : hasHero ? "-mt-[34vh] md:-mt-[30vh] lg:-mt-[300px]" : "mt-2",
+        )}
+      >
+        <div className={cn("flex flex-col gap-5 md:flex-row md:items-end md:gap-8", isBook && "items-center text-center md:text-left")}>
+          {isBook ? (
+            <BookCover
+              src={detail.artworkUrl}
+              title={detail.title}
+              sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 50vw"
+              className="w-[42vw] max-w-[190px] md:w-[220px] md:max-w-none lg:w-[248px]"
+            />
+          ) : (
           <div
             className={cn(
               "relative w-[34vw] max-w-[150px] shrink-0 overflow-hidden rounded-[16px] shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] ring-1 ring-white/10 md:w-[220px] md:max-w-none lg:w-[248px]",
@@ -136,6 +160,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           >
             <Artwork src={detail.artworkUrl} title={detail.title} type={type} sizes="(min-width: 1024px) 248px, (min-width: 768px) 220px, 34vw" priority />
           </div>
+          )}
           <div className="min-w-0 md:pb-2">
             <p className="text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">{TYPE_LABEL[type]}</p>
             <h1 className="mt-1 text-[30px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[44px] lg:text-[52px]">
@@ -155,7 +180,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             ) : detail.subtitle ? (
               <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">{detail.subtitle}</p>
             ) : null}
-            <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-fg-2 md:text-[15px]">
+            <p className={cn("mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-fg-2 md:text-[15px]", center)}>
               {detail.highlights.map((h, i) => (
                 <span key={h} className="inline-flex items-center gap-2">
                   {i > 0 && <span aria-hidden className="text-fg-3">·</span>}
@@ -164,7 +189,6 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               ))}
               {detail.score ? (
                 <span className="inline-flex items-center gap-2">
-                  {detail.highlights.length > 0 && <span aria-hidden className="text-fg-3">·</span>}
                   <span className="rounded-md bg-white/10 px-1.5 py-px text-[12px] font-semibold text-fg">
                     {detail.score.max === 100 ? `${detail.score.source} ${detail.score.value}` : `${detail.score.source} ${detail.score.value}/${detail.score.max}`}
                   </span>
@@ -173,7 +197,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             </p>
             {detail.genres.length > 0 && <p className="mt-1.5 text-[14px] text-fg-3">{detail.genres.slice(0, 4).join(" · ")}</p>}
             {(detail.videos?.[0] || upcoming) && (
-              <div className="mt-5 flex flex-wrap gap-2">
+              <div className={cn("mt-5 flex flex-wrap gap-2", center)}>
                 {detail.videos?.[0] && <PlayTrailerButton video={detail.videos[0]} />}
                 {upcoming && <RemindMe media={card} date={upcoming} />}
               </div>
