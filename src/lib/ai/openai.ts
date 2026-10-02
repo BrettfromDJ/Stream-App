@@ -15,7 +15,7 @@ const DEFAULT_MODELS: Record<ModelTier, string[]> = {
   // Browsing ("books about gold mining"): quick and cheap.
   fast: ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"],
   // Naming one specific title from a plot description: needs broader knowledge and some thought.
-  smart: ["gpt-5", "gpt-4.1", "gpt-5-mini", "gpt-4o"],
+  smart: ["gpt-4.1", "gpt-5", "gpt-4o", "gpt-5-mini"],
 };
 
 const ENV_MODEL: Record<ModelTier, string> = { fast: "OPENAI_MODEL", smart: "OPENAI_SMART_MODEL" };
@@ -72,7 +72,8 @@ export async function chatJson<T>(opts: {
         next: { revalidate: 60 * 60 * 24 },
       });
     } catch (err) {
-      throw new ProviderError("openai", "unavailable", (err as Error).message);
+      const timedOut = (err as Error).name === "TimeoutError" || (err as Error).name === "AbortError";
+      throw new ProviderError("openai", "unavailable", timedOut ? "The AI took too long to answer. Try again in a moment." : (err as Error).message);
     }
 
     if (!res.ok) {

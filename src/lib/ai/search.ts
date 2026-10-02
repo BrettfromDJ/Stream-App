@@ -105,16 +105,27 @@ Return:
 
 Favor well-reviewed, widely available titles, mixed with a few lesser-known gems. Never invent titles.`;
 
-const IDENTIFY = `
-This request describes ONE specific title the user is trying to name (plot details, characters, a scene).
-- The FIRST section must be titled "Best Match" and contain 1 to 5 candidates that fit the specific details,
-  most likely first. Check each candidate against every detail given (who the character is, what happens, the setting);
-  prefer the title that fits all of them. People often misremember details (which character had a trait, names,
-  the year, small plot points): weigh the overall match and allow one or two details to be wrong or swapped
-  between characters; if a candidate fits except for a swapped detail, say so in its reason.
-  Include recent releases and mid-list genre fiction (e.g. contemporary romance),
-  not just famous titles. In each reason, name the matching details.
-- Then 2 or 3 more sections of similar titles (e.g. "If You Liked That", "Similar Romances").`;
+const MATCH_SYSTEM = `You help people name a specific movie, TV show, book or video game they half-remember.
+The user describes ONE title (plot details, characters, a scene). Return:
+- picks: 1 to 5 candidates that fit the details, most likely first. Real, published titles only, with exact official titles.
+  Check each candidate against every detail (who the character is, what happens, the setting) and prefer the one that fits all.
+  People often misremember details (which character had a trait, names, the year, small plot points): weigh the overall
+  match and allow one or two details to be wrong or swapped between characters; if a candidate fits except for a swapped
+  detail, say so in its reason. Include recent releases and mid-list genre fiction (e.g. contemporary romance), not just
+  famous titles. creator = author / director / creator / studio. reason: max 20 words, naming the matching details.
+- summary: one short sentence, e.g. "This sounds like Out on a Limb by Hannah Bonam-Young."`;
+
+const MATCH_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["summary", "picks"],
+  properties: { summary: { type: "string" }, picks: { type: "array", items: PICK } },
+};
+
+// Runs alongside the match request: titles *like* the one described, kept short so it returns quickly.
+const SIMILAR = `
+The user is trying to name one specific title (another system handles that). Your job: titles SIMILAR to what they describe.
+Return 2 sections (e.g. "Similar Reads", "If You Liked That") of 6 to 8 picks each, and the topics.`;
 
 /** "Find the book where…", "what's that movie about…": naming a title rather than browsing a topic. */
 export function isIdentifyQuery(q: string) {
@@ -194,14 +205,34 @@ const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
  */
 export async function aiSearch(query: string, filter: MediaType | "all"): Promise<AiSearchResult> {
   const identify = isIdentifyQuery(query);
-  const out = await chatJson<ModelOutput>({
-    system: identify ? SYSTEM + IDENTIFY : SYSTEM,
-    user: `Request: ${query}\nRecommend ${NOUN[filter]}.`,
-    schemaName: "media_discovery",
-    schema: SCHEMA,
-    timeoutMs: identify ? 45_000 : 40_000,
-    tier: identify ? "smart" : "fast",
-  });
+  const user = `Request: ${query}\nRecommend ${NOUN[filter]}.`;
+  let out: ModelOutput;
+  if (!identify) {
+    out = await chatJson<ModelOutput>({ system: SYSTEM, user, schemaName: "media_discovery", schema: SCHEMA, timeoutMs: 40_000 });
+  } else {
+    // Two short requests in parallel: the stronger model names the title, the fast one finds similar ones.
+    // Either can fail or run slow without sinking the whole search.
+    const [match, similar] = await Promise.allSettled([
+      chatJson<{ summary: string; picks: ModelPick[] }>({
+        system: MATCH_SYSTEM,
+        user,
+        schemaName: "media_match",
+        schema: MATCH_SCHEMA,
+        timeoutMs: 35_000,
+        tier: "smart",
+      }),
+      chatJson<ModelOutput>({ system: SYSTEM + SIMILAR, user, schemaName: "media_discovery", schema: SCHEMA, timeoutMs: 30_000 }),
+    ]);
+    if (match.status === "rejected" && similar.status === "rejected") throw match.reason;
+    const m = match.status === "fulfilled" ? match.value : null;
+    const sim = similar.status === "fulfilled" ? similar.value : null;
+    if (!m) console.warn("[ai-search] match request failed:", (match as PromiseRejectedResult).reason?.message);
+    out = {
+      summary: m?.summary || sim?.summary || "",
+      sections: [...(m?.picks?.length ? [{ title: "Best Match", picks: m.picks }] : []), ...(sim?.sections ?? [])],
+      topics: sim?.topics ?? [],
+    };
+  }
 
   // The filter chip is a preference; words in the request ("a book about…") win when they disagree.
   const allPicks = (out.sections ?? []).flatMap((s) => s.picks ?? []);
