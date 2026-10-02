@@ -105,6 +105,24 @@ Return:
 
 Favor well-reviewed, widely available titles, mixed with a few lesser-known gems. Never invent titles.`;
 
+const IDENTIFY = `
+This request describes ONE specific title the user is trying to name (plot details, characters, a scene).
+- The FIRST section must be titled "Best Match" and contain 1 to 5 candidates that fit the specific details,
+  most likely first. Check each candidate against every detail given (who the character is, what happens, the setting);
+  prefer the title that fits all of them. People often misremember details (which character had a trait, names,
+  the year, small plot points): weigh the overall match and allow one or two details to be wrong or swapped
+  between characters; if a candidate fits except for a swapped detail, say so in its reason.
+  Include recent releases and mid-list genre fiction (e.g. contemporary romance),
+  not just famous titles. In each reason, name the matching details.
+- Then 2 or 3 more sections of similar titles (e.g. "If You Liked That", "Similar Romances").`;
+
+/** "Find the book where…", "what's that movie about…": naming a title rather than browsing a topic. */
+export function isIdentifyQuery(q: string) {
+  return /\b(the|a|that|this)\s+(book|novel|movie|film|show|series|game|story)\s+(where|in which|when|that|about a|about an|with the)\b|\b(what'?s|what is) (the name|it called|that)\b|\b(can'?t|cannot|don'?t) remember\b|\bforgot\b|\bname of\b/i.test(
+    q,
+  );
+}
+
 /** Normalizes titles for loose matching ("The Book Thief" ≈ "Book Thief, The"). */
 const norm = (s: string) =>
   s
@@ -175,12 +193,14 @@ const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
  * more titles tagged with that subject.
  */
 export async function aiSearch(query: string, filter: MediaType | "all"): Promise<AiSearchResult> {
+  const identify = isIdentifyQuery(query);
   const out = await chatJson<ModelOutput>({
-    system: SYSTEM,
+    system: identify ? SYSTEM + IDENTIFY : SYSTEM,
     user: `Request: ${query}\nRecommend ${NOUN[filter]}.`,
     schemaName: "media_discovery",
     schema: SCHEMA,
-    timeoutMs: 40_000,
+    timeoutMs: identify ? 45_000 : 40_000,
+    tier: identify ? "smart" : "fast",
   });
 
   // The filter chip is a preference; words in the request ("a book about…") win when they disagree.

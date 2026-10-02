@@ -3,35 +3,54 @@ import { ProviderError } from "@/lib/providers/http";
 
 /**
  * Minimal OpenAI client (Chat Completions + JSON schema output).
- * The key never leaves the server. OPENAI_MODEL can pin a model; otherwise we try
- * small, inexpensive models in order until one is available on the account.
+ * The key never leaves the server. OPENAI_MODEL / OPENAI_SMART_MODEL can pin models; otherwise we
+ * try sensible defaults in order until one is available on the account.
  */
 
 const API = "https://api.openai.com/v1/chat/completions";
-const DEFAULT_MODELS = ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"];
+export type ModelTier = "fast" | "smart";
+
+/** Tried in order until one is available on the account. */
+const DEFAULT_MODELS: Record<ModelTier, string[]> = {
+  // Browsing ("books about gold mining"): quick and cheap.
+  fast: ["gpt-5-mini", "gpt-4.1-mini", "gpt-4o-mini"],
+  // Naming one specific title from a plot description: needs broader knowledge and some thought.
+  smart: ["gpt-5", "gpt-4.1", "gpt-5-mini", "gpt-4o"],
+};
+
+const ENV_MODEL: Record<ModelTier, string> = { fast: "OPENAI_MODEL", smart: "OPENAI_SMART_MODEL" };
 
 export function isAiConfigured() {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
 }
 
-function models() {
-  const pinned = process.env.OPENAI_MODEL?.trim();
-  return pinned ? [pinned] : DEFAULT_MODELS;
+function models(tier: ModelTier) {
+  const pinned = process.env[ENV_MODEL[tier]]?.trim();
+  return pinned ? [pinned] : DEFAULT_MODELS[tier];
 }
 
-// Remembers which default model worked, so later calls skip the ones that didn't.
-let working: string | null = null;
+// Remembers which default model worked per tier, so later calls skip the ones that didn't.
+const working: Partial<Record<ModelTier, string>> = {};
 
 interface ChatResponse {
   choices?: { finish_reason?: string; message?: { content?: string | null; refusal?: string | null } }[];
 }
 
 /** Asks for a JSON object matching `schema`. Identical requests are cached for a day. */
-export async function chatJson<T>(opts: { system: string; user: string; schemaName: string; schema: object; timeoutMs?: number }): Promise<T> {
+export async function chatJson<T>(opts: {
+  system: string;
+  user: string;
+  schemaName: string;
+  schema: object;
+  timeoutMs?: number;
+  tier?: ModelTier;
+}): Promise<T> {
+  const tier = opts.tier ?? "fast";
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new ProviderError("openai", "not_configured");
 
-  const candidates = working ? [working] : models();
+  const remembered = working[tier];
+  const candidates = remembered ? [remembered] : models(tier);
   let lastError = "";
   for (const model of candidates) {
     let res: Response;
@@ -47,7 +66,7 @@ export async function chatJson<T>(opts: { system: string; user: string; schemaNa
           ],
           response_format: { type: "json_schema", json_schema: { name: opts.schemaName, strict: true, schema: opts.schema } },
           // Reasoning models (gpt-5*, o*) think at length by default; recommendations don't need it.
-          ...(/^(gpt-5|o\d)/.test(model) ? { reasoning_effort: "minimal" } : {}),
+          ...(/^(gpt-5|o\d)/.test(model) ? { reasoning_effort: tier === "smart" ? "low" : "minimal" } : {}),
         }),
         signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
         next: { revalidate: 60 * 60 * 24 },
@@ -83,7 +102,7 @@ export async function chatJson<T>(opts: { system: string; user: string; schemaNa
       console.error(`[openai] ${model}: ${why}`);
       throw new ProviderError("openai", "unavailable", why);
     }
-    if (!process.env.OPENAI_MODEL) working = model;
+    if (!process.env[ENV_MODEL[tier]]) working[tier] = model;
     try {
       return JSON.parse(content) as T;
     } catch {
