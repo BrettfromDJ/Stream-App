@@ -46,6 +46,8 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
   const [failedKey, setFailedKey] = useState<string | null>(null);
   // Set when a title is searched from an AI suggestion: that's a plain title search, not another AI request.
   const [plainSearch, setPlainSearch] = useState(false);
+  // With AI Picks showing, literal title matches for a sentence are mostly noise: tucked behind a button.
+  const [showTitleMatches, setShowTitleMatches] = useState(false);
 
   const trimmed = query.trim();
   const active = trimmed.length >= 2;
@@ -134,6 +136,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
               onChange={(e) => {
                 setQuery(e.target.value);
                 setPlainSearch(false);
+                setShowTitleMatches(false);
               }}
               onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
               placeholder={aiEnabled ? "Search a title, or describe what you want" : "Search movies, shows, books & games"}
@@ -194,6 +197,16 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
             )}
             {total === 0 && !loading ? (
               ai ? null : <Message title={`No results for “${trimmed}”`} body="Try a different spelling or a shorter title." />
+            ) : ai && !showTitleMatches ? (
+              <div className="gutter">
+                <button
+                  type="button"
+                  onClick={() => setShowTitleMatches(true)}
+                  className="h-10 max-w-full truncate rounded-full bg-white/[0.06] px-4 text-[14px] font-medium text-fg-2 hover:text-fg"
+                >
+                  Show {total} title match{total === 1 ? "" : "es"} for “{trimmed}”
+                </button>
+              </div>
             ) : type === "all" ? (
               <div className="flex flex-col gap-9 md:gap-11">
                 {groups.map((t) => (

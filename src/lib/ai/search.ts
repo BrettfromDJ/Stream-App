@@ -1,8 +1,8 @@
 import "server-only";
 import { searchBooks } from "@/lib/providers";
-import { searchGames } from "@/lib/providers/igdb";
+import { gamesAboutKeyword, searchGames } from "@/lib/providers/igdb";
 import * as ol from "@/lib/providers/openlibrary";
-import { searchTmdb } from "@/lib/providers/tmdb";
+import { aboutKeyword, searchTmdb } from "@/lib/providers/tmdb";
 import type { MediaSearchResult, MediaType } from "@/lib/media/types";
 import { chatJson } from "./openai";
 
@@ -13,7 +13,10 @@ export interface AiPick extends MediaSearchResult {
 export interface AiSearchResult {
   /** One friendly sentence about what was found. */
   summary: string;
-  picks: AiPick[];
+  /** The model's picks, grouped into themed sections ("Essential Reads", "True Stories"…). */
+  sections: { title: string; items: AiPick[] }[];
+  /** Catalog titles tagged with the request's topics, whatever they're named. */
+  related: { title: string; items: MediaSearchResult[] }[];
   /** Suggestions that couldn't be matched to a catalog entry (shown as text, tap to search). */
   unmatched: { type: MediaType; title: string; creator: string | null; reason: string }[];
 }
@@ -26,24 +29,49 @@ interface ModelPick {
   reason: string;
 }
 
+interface ModelOutput {
+  summary: string;
+  sections: { title: string; picks: ModelPick[] }[];
+  topics: { type: MediaType; terms: string[] }[];
+}
+
+const PICK = {
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "title", "year", "creator", "reason"],
+  properties: {
+    type: { type: "string", enum: ["movie", "tv", "book", "game"] },
+    title: { type: "string" },
+    year: { type: ["integer", "null"] },
+    creator: { type: ["string", "null"] },
+    reason: { type: "string" },
+  },
+};
+
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["summary", "picks"],
+  required: ["summary", "sections", "topics"],
   properties: {
     summary: { type: "string" },
-    picks: {
+    sections: {
       type: "array",
       items: {
         type: "object",
         additionalProperties: false,
-        required: ["type", "title", "year", "creator", "reason"],
+        required: ["title", "picks"],
+        properties: { title: { type: "string" }, picks: { type: "array", items: PICK } },
+      },
+    },
+    topics: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["type", "terms"],
         properties: {
           type: { type: "string", enum: ["movie", "tv", "book", "game"] },
-          title: { type: "string" },
-          year: { type: ["integer", "null"] },
-          creator: { type: ["string", "null"] },
-          reason: { type: "string" },
+          terms: { type: "array", items: { type: "string" } },
         },
       },
     },
@@ -58,16 +86,24 @@ const NOUN: Record<MediaType | "all", string> = {
   game: "video games, unless the request clearly asks for another medium (then follow the request)",
 };
 
-const SYSTEM = `You are the recommendation engine inside a personal media tracker.
-Turn the user's request into specific, real, published titles that exist in mainstream databases (TMDB, Hardcover/Goodreads, IGDB).
-Rules:
-- Only real titles with their exact official title (no subtitles invented, no series names when a single book/film is meant).
-- Prefer widely loved and well-reviewed picks, with a few less obvious gems.
-- If the user names a medium ("a book", "games"), return only that medium.
-- creator = author (books), director (movies), creator/network (TV) or studio (games).
-- reason: one short sentence (max 18 words) on why it fits the request. No spoilers.
-- summary: one short, warm sentence describing the picks (max 20 words).
-- Return 8 to 10 picks, best first.`;
+const SYSTEM = `You are the discovery engine inside a personal media tracker for movies, TV, books and video games.
+The user describes what they want — a subject, theme, mood, setting or comparison. Recommend titles by what they are ABOUT
+(plot, setting, subject matter, themes), not by words in their titles. Example: "a book about gold mining" should include
+novels and nonfiction set in gold rushes, mining towns and prospecting, even if "gold" isn't in the title.
+
+Return:
+- summary: one warm sentence (max 22 words) describing the selection.
+- sections: 3 or 4 themed groups that make the results easy to browse, e.g. "Essential Reads", "Novels", "True Stories",
+  "Recent Releases", "Hidden Gems", "For Younger Readers", "On Screen". Section titles: 1-4 words, Title Case.
+  Each section has 6 to 8 picks; 24-30 picks in total, no title repeated. Put the strongest, most relevant section first.
+- each pick: a real, published title with its exact official title as listed on TMDB / Goodreads / IGDB
+  (no invented subtitles; individual books/films, not series names), its year, creator (author for books, director
+  for movies, creator or network for TV, studio for games), and reason: one short sentence (max 18 words) explaining
+  what it's about and why it fits. No spoilers.
+- topics: for each medium you recommended, 1 to 3 short subject terms as a librarian or tagger would use them
+  (e.g. "gold mining", "gold rush", "prospecting"). Lowercase, 1-3 words each. These are used to find more titles by subject.
+
+Favor well-reviewed, widely available titles, mixed with a few lesser-known gems. Never invent titles.`;
 
 /** Normalizes titles for loose matching ("The Book Thief" ≈ "Book Thief, The"). */
 const norm = (s: string) =>
@@ -81,13 +117,14 @@ const norm = (s: string) =>
 
 function bestMatch(results: MediaSearchResult[], pick: ModelPick): MediaSearchResult | null {
   const want = norm(pick.title);
-  const candidates = results.filter((r) => r.type === pick.type && r.artworkUrl);
-  const scored = candidates.map((r) => {
-    const got = norm(r.title);
-    let score = got === want ? 3 : got.startsWith(want) || want.startsWith(got) ? 2 : got.includes(want) ? 1 : 0;
-    if (score && pick.year && r.year) score += Math.abs(r.year - pick.year) <= 1 ? 1.5 : -0.5;
-    return { r, score };
-  });
+  const scored = results
+    .filter((r) => r.type === pick.type && r.artworkUrl)
+    .map((r) => {
+      const got = norm(r.title);
+      let score = got === want ? 3 : got.startsWith(want) || want.startsWith(got) ? 2 : got.includes(want) ? 1 : 0;
+      if (score && pick.year && r.year) score += Math.abs(r.year - pick.year) <= 1 ? 1.5 : -0.5;
+      return { r, score };
+    });
   const top = scored.sort((a, b) => b.score - a.score)[0];
   return top && top.score >= 1 ? top.r : null;
 }
@@ -115,37 +152,91 @@ async function resolve(pick: ModelPick): Promise<AiPick | null> {
   }
 }
 
+/** Resolves with null instead of waiting past `ms`. */
+const within = <T,>(p: Promise<T>, ms: number) => Promise.race([p, new Promise<null>((r) => setTimeout(() => r(null), ms))]);
+
+const ABOUT_NOUN: Record<MediaType, string> = { movie: "Movies", tv: "Shows", book: "Books", game: "Games" };
+
+async function aboutTopic(type: MediaType, term: string): Promise<MediaSearchResult[]> {
+  try {
+    if (type === "book") return await ol.booksAboutSubject(term);
+    if (type === "game") return await gamesAboutKeyword(term);
+    return await aboutKeyword(type, term);
+  } catch {
+    return [];
+  }
+}
+
+const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
 /**
- * Natural-language search: the model suggests titles, then each is looked up in the real
- * catalogs so every result has proper artwork and opens the normal detail page.
+ * Natural-language discovery: the model curates themed sections and names the topics; every pick is
+ * looked up in the real catalogs (so it has artwork and opens the normal page), and the topics pull in
+ * more titles tagged with that subject.
  */
 export async function aiSearch(query: string, filter: MediaType | "all"): Promise<AiSearchResult> {
-  const out = await chatJson<{ summary: string; picks: ModelPick[] }>({
+  const out = await chatJson<ModelOutput>({
     system: SYSTEM,
-    user: `Request: ${query}\nReturn ${NOUN[filter]}.`,
-    schemaName: "media_picks",
+    user: `Request: ${query}\nRecommend ${NOUN[filter]}.`,
+    schemaName: "media_discovery",
     schema: SCHEMA,
+    timeoutMs: 40_000,
   });
+
   // The filter chip is a preference; words in the request ("a book about…") win when they disagree.
-  const all = out.picks ?? [];
-  const preferred = filter === "all" ? all : all.filter((p) => p.type === filter);
-  const picks = (preferred.length ? preferred : all).slice(0, 12);
-  // A slow catalog lookup shouldn't hold up the rest: each pick gets 10 seconds.
-  const resolved = await Promise.all(
-    picks.map((p) => Promise.race([resolve(p), new Promise<null>((r) => setTimeout(() => r(null), 10_000))])),
-  );
+  const allPicks = (out.sections ?? []).flatMap((s) => s.picks ?? []);
+  const keep = (t: MediaType) => filter === "all" || !allPicks.some((p) => p.type === filter) || t === filter;
+
+  const sectionsIn = (out.sections ?? [])
+    .map((s) => ({ title: s.title, picks: (s.picks ?? []).filter((p) => keep(p.type)).slice(0, 10) }))
+    .filter((s) => s.picks.length);
+  const topicsIn = (out.topics ?? [])
+    .filter((t) => keep(t.type))
+    .flatMap((t) => (t.terms ?? []).slice(0, 2).map((term) => ({ type: t.type, term: term.trim().toLowerCase() })))
+    .filter((t) => t.term.length >= 3)
+    .slice(0, 6);
+
+  // Look everything up at once; a slow lookup gives up after 12s rather than holding up the page.
+  const [resolvedSections, topicResults] = await Promise.all([
+    Promise.all(sectionsIn.map((s) => Promise.all(s.picks.map((p) => within(resolve(p), 12_000))))),
+    Promise.all(topicsIn.map((t) => within(aboutTopic(t.type, t.term), 12_000))),
+  ]);
+
   const seen = new Set<string>();
-  const unmatched = picks
-    .filter((_, i) => !resolved[i])
-    .map(({ type, title, creator, reason }) => ({ type, title, creator, reason }));
+  const keyOf = (m: MediaSearchResult) => `${m.type}:${m.externalId}`;
+  const unmatched: AiSearchResult["unmatched"] = [];
+  const sections = sectionsIn
+    .map((s, i) => ({
+      title: s.title,
+      items: resolvedSections[i].filter((p, j): p is AiPick => {
+        if (!p) {
+          const { type, title, creator, reason } = s.picks[j];
+          unmatched.push({ type, title, creator, reason });
+          return false;
+        }
+        if (seen.has(keyOf(p))) return false;
+        seen.add(keyOf(p));
+        return true;
+      }),
+    }))
+    .filter((s) => s.items.length);
+
+  // Topic rows: merge each medium's terms, skip anything already picked.
+  const byType = new Map<MediaType, { terms: string[]; items: MediaSearchResult[] }>();
+  topicsIn.forEach((t, i) => {
+    const entry = byType.get(t.type) ?? { terms: [], items: [] };
+    entry.terms.push(t.term);
+    for (const m of topicResults[i] ?? []) {
+      if (seen.has(keyOf(m))) continue;
+      seen.add(keyOf(m));
+      entry.items.push(m);
+    }
+    byType.set(t.type, entry);
+  });
+  const related = [...byType.entries()]
+    .filter(([, e]) => e.items.length >= 3)
+    .map(([type, e]) => ({ title: `More ${ABOUT_NOUN[type]} About ${titleCase(e.terms[0])}`, items: e.items.slice(0, 30) }));
+
   if (unmatched.length) console.warn("[ai-search] unmatched:", unmatched.map((u) => `${u.type}:${u.title}`).join(", "));
-  return {
-    summary: out.summary ?? "",
-    picks: resolved.filter((p): p is AiPick => {
-      if (!p) return false;
-      const key = `${p.type}:${p.externalId}`;
-      return !seen.has(key) && Boolean(seen.add(key));
-    }),
-    unmatched,
-  };
+  return { summary: out.summary ?? "", sections, related, unmatched };
 }

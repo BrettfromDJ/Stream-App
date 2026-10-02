@@ -2,11 +2,11 @@
 
 import { Search, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import type { AiSearchResult } from "@/lib/ai/search";
+import type { AiPick, AiSearchResult } from "@/lib/ai/search";
 import type { SearchFilter } from "@/lib/providers";
 import { cardFromResult, type LibraryIndex } from "@/lib/media/card";
 import { MediaCard } from "@/components/media/media-card";
-import { ROW_ITEM, ROW_SIZES } from "@/components/media/row";
+import { Row, ROW_ITEM, ROW_SIZES } from "@/components/media/row";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
@@ -43,9 +43,9 @@ export function AiPicks({ query, type, libraryIndex, onSearch }: Props) {
     // Wait for a pause in typing: each request costs a little.
     const timer = setTimeout(async () => {
       try {
-        // Never spin forever: give up after 45s and fall back to title matches.
+        // Never spin forever: give up after ~a minute and fall back to title matches.
         const signal =
-          typeof AbortSignal.any === "function" ? AbortSignal.any([controller.signal, AbortSignal.timeout(45_000)]) : controller.signal;
+          typeof AbortSignal.any === "function" ? AbortSignal.any([controller.signal, AbortSignal.timeout(58_000)]) : controller.signal;
         const res = await fetch(`/api/ai-search?${new URLSearchParams({ q: query, type })}`, { signal });
         const body = (await res.json().catch(() => null)) as (AiSearchResult & { detail?: string }) | null;
         cache.set(key, res.ok && body ? body : { failed: "error", detail: body?.detail ?? `Error ${res.status}` });
@@ -75,64 +75,115 @@ export function AiPicks({ query, type, libraryIndex, onSearch }: Props) {
   }
 
   const unmatched = result?.unmatched ?? [];
-  if (result && !result.picks.length && !unmatched.length) {
+  const sections = result?.sections ?? [];
+  const related = result?.related ?? [];
+  if (result && !sections.length && !related.length && !unmatched.length) {
     return <p className="gutter mb-8 text-[14px] text-fg-2">AI couldn&apos;t find anything for that — try describing it another way.</p>;
   }
+  const [lead, ...rest] = sections;
 
   return (
-    <section aria-label="AI Picks" className="mb-10">
-      <div className="gutter mb-3">
-        <h2 className="inline-flex items-center gap-2 text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">
-          <span className="grid size-7 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-sky-400 text-black">
-            <Sparkles className="size-4" strokeWidth={2.5} />
+    <div className="mb-12 flex flex-col gap-10">
+      <header className="gutter">
+        <h2 className="inline-flex items-center gap-2 text-[22px] font-bold tracking-[-0.02em] md:text-[26px]">
+          <span className="grid size-8 place-items-center rounded-full bg-gradient-to-br from-violet-400 to-sky-400 text-black">
+            <Sparkles className="size-[18px]" strokeWidth={2.5} />
           </span>
           AI Picks
         </h2>
-        <p className="mt-1 text-[14px] text-fg-2">{result ? result.summary : slow ? "Still thinking — this one\u2019s taking a moment…" : "Finding titles that match…"}</p>
-      </div>
-      {(!result || result.picks.length > 0) && (
-        <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2 md:gap-3.5">
-          {result
-            ? result.picks.map((p) => (
-                <div key={`${p.type}-${p.externalId}`} className={cn("shrink-0 snap-start", ROW_ITEM.poster)}>
-                  <MediaCard media={cardFromResult(p, libraryIndex)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
-                  <p className="mt-1 line-clamp-3 px-1 text-[12.5px] leading-snug text-fg-2">{p.reason}</p>
-                </div>
-              ))
-            : Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className={cn("shrink-0", ROW_ITEM.poster)}>
-                  <Skeleton className="aspect-[2/3] w-full rounded-[14px]" />
-                  <Skeleton className="mt-2 h-3.5 w-4/5 rounded" />
-                  <Skeleton className="mt-1.5 h-3 w-3/5 rounded" />
-                </div>
+        <p className="mt-1.5 max-w-2xl text-[15px] leading-snug text-fg-2">
+          {result ? result.summary : slow ? "Still thinking — this one\u2019s taking a moment…" : "Reading up on that and gathering titles…"}
+        </p>
+      </header>
+
+      {!result ? (
+        <PickGridSkeleton />
+      ) : (
+        <>
+          {lead && (
+            <section aria-label={lead.title}>
+              <h3 className="gutter mb-3 text-[19px] font-bold tracking-[-0.02em] md:text-[21px]">{lead.title}</h3>
+              <div className="gutter grid grid-cols-3 gap-x-2.5 gap-y-5 sm:grid-cols-4 md:grid-cols-5 md:gap-x-4 lg:grid-cols-6">
+                {lead.items.map((p) => (
+                  <Pick key={`${p.type}-${p.externalId}`} pick={p} libraryIndex={libraryIndex} sizes={LEAD_SIZES} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {rest.map((s) => (
+            <section key={s.title} aria-label={s.title}>
+              <h3 className="gutter mb-3 text-[19px] font-bold tracking-[-0.02em] md:text-[21px]">{s.title}</h3>
+              <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2 md:gap-3.5">
+                {s.items.map((p) => (
+                  <div key={`${p.type}-${p.externalId}`} className={cn("shrink-0 snap-start", ROW_ITEM.poster)}>
+                    <Pick pick={p} libraryIndex={libraryIndex} sizes={ROW_SIZES.poster} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {related.map((r) => (
+            <Row key={r.title} title={r.title} subtitle="Tagged with this subject, whatever the title">
+              {r.items.map((m) => (
+                <MediaCard key={`${m.type}-${m.externalId}`} media={cardFromResult(m, libraryIndex)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
               ))}
-        </div>
+            </Row>
+          ))}
+
+          {unmatched.length > 0 && (
+            <section className="gutter" aria-label="More ideas">
+              <h3 className="mb-2 text-[19px] font-bold tracking-[-0.02em]">More Ideas</h3>
+              <ul className="overflow-hidden rounded-2xl bg-white/[0.04] md:max-w-2xl">
+                {unmatched.map((u) => (
+                  <li key={`${u.type}:${u.title}`} className="border-b border-white/[0.06] last:border-0">
+                    <button
+                      type="button"
+                      onClick={() => onSearch(u.title)}
+                      className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[15px] font-semibold">
+                          {u.title}
+                          {u.creator && <span className="font-normal text-fg-3"> · {u.creator}</span>}
+                        </span>
+                        <span className="mt-0.5 block text-[13px] leading-snug text-fg-2">{u.reason}</span>
+                      </span>
+                      <Search className="mt-1 size-4 shrink-0 text-fg-3" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </>
       )}
-      {unmatched.length > 0 && (
-        <div className="gutter mt-3">
-          {result!.picks.length > 0 && <p className="mb-2 text-[13px] font-semibold tracking-wide text-fg-3 uppercase">More ideas</p>}
-          <ul className="overflow-hidden rounded-2xl bg-white/[0.04]">
-            {unmatched.map((u) => (
-              <li key={`${u.type}:${u.title}`} className="border-b border-white/[0.06] last:border-0">
-                <button
-                  type="button"
-                  onClick={() => onSearch(u.title)}
-                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[15px] font-semibold">
-                      {u.title}
-                      {u.creator && <span className="font-normal text-fg-3"> · {u.creator}</span>}
-                    </span>
-                    <span className="mt-0.5 block text-[13px] leading-snug text-fg-2">{u.reason}</span>
-                  </span>
-                  <Search className="mt-1 size-4 shrink-0 text-fg-3" />
-                </button>
-              </li>
-            ))}
-          </ul>
+    </div>
+  );
+}
+
+const LEAD_SIZES = "(min-width: 1024px) 16vw, (min-width: 768px) 19vw, (min-width: 640px) 23vw, 31vw";
+
+function Pick({ pick, libraryIndex, sizes }: { pick: AiPick; libraryIndex: LibraryIndex; sizes: string }) {
+  return (
+    <div>
+      <MediaCard media={cardFromResult(pick, libraryIndex)} sizes={sizes} showRating={false} showInLibrary />
+      <p className="mt-1 line-clamp-3 px-0.5 text-[12px] leading-snug text-fg-2 md:text-[12.5px]">{pick.reason}</p>
+    </div>
+  );
+}
+
+function PickGridSkeleton() {
+  return (
+    <div className="gutter grid grid-cols-3 gap-x-2.5 gap-y-5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i}>
+          <Skeleton className="aspect-[2/3] w-full rounded-[14px]" />
+          <Skeleton className="mt-2 h-3.5 w-4/5 rounded" />
+          <Skeleton className="mt-1.5 h-3 w-3/5 rounded" />
         </div>
-      )}
-    </section>
+      ))}
+    </div>
   );
 }
