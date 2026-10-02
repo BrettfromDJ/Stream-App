@@ -13,6 +13,7 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { GRID_SIZES, MediaGrid } from "@/components/media/grid";
 import { GridSkeleton, RowSkeleton } from "@/components/media/skeletons";
 import { cn } from "@/lib/utils";
+import { AiPicks, wantsAi } from "./ai-picks";
 
 const FILTERS: { value: SearchFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -24,6 +25,8 @@ interface Props {
   initialType: SearchFilter;
   initialResults: GroupedSearch | null;
   libraryIndex: LibraryIndex;
+  /** OpenAI is configured: descriptive queries also get AI Picks. */
+  aiEnabled?: boolean;
   /** Server-rendered browse rows shown before typing. */
   children: ReactNode;
 }
@@ -31,7 +34,7 @@ interface Props {
 // Survives navigations within the session so going back to Search is instant.
 const cache = new Map<string, GroupedSearch>();
 
-export function SearchView({ initialQuery, initialType, initialResults, libraryIndex, children }: Props) {
+export function SearchView({ initialQuery, initialType, initialResults, libraryIndex, aiEnabled, children }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(initialQuery);
@@ -102,6 +105,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
   const showingStale = loading && current;
   const wanted = type === "all" ? MEDIA_TYPES.length : 1;
   const allDown = unavailable.length >= wanted;
+  const ai = aiEnabled && active && wantsAi(trimmed);
   const unavailableText = new Intl.ListFormat("en", { type: "conjunction" }).format(unavailable.map((t) => TYPE_NOUN_PLURAL[t].toLowerCase()));
 
   return (
@@ -127,7 +131,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-              placeholder="Search movies, shows, books & games"
+              placeholder={aiEnabled ? "Search a title, or describe what you want" : "Search movies, shows, books & games"}
               className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
             />
             {query && (
@@ -150,6 +154,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
       </div>
 
       <div className="mt-4">
+        {ai && <AiPicks key={`${type}:${trimmed.toLowerCase()}`} query={trimmed} type={type} libraryIndex={libraryIndex} />}
         {!active ? (
           children
         ) : !current && loading ? (
@@ -171,11 +176,11 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
               </p>
             )}
             {total === 0 && !loading ? (
-              <Message title={`No results for “${trimmed}”`} body="Try a different spelling or a shorter title." />
+              ai ? null : <Message title={`No results for “${trimmed}”`} body="Try a different spelling or a shorter title." />
             ) : type === "all" ? (
               <div className="flex flex-col gap-9 md:gap-11">
                 {groups.map((t) => (
-                  <Row key={t} title={TYPE_NOUN_PLURAL[t]}>
+                  <Row key={t} title={ai ? `${TYPE_NOUN_PLURAL[t]} · Title Matches` : TYPE_NOUN_PLURAL[t]}>
                     {current!.results[t].map((r) => (
                       <MediaCard key={r.externalId} media={cardFromResult(r, libraryIndex)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
                     ))}

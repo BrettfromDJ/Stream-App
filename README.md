@@ -31,6 +31,8 @@ simply hidden.
 | `IGDB_CLIENT_SECRET` | **server only** | same app → "New Secret" |
 | `HARDCOVER_API_TOKEN` | **server only**, optional | hardcover.app/account/api (books fall back to Open Library without it) |
 | `NYT_API_KEY` | **server only**, optional | developer.nytimes.com (Books API) — bestseller charts on the Books tab |
+| `OPENAI_API_KEY` | **server only**, optional | platform.openai.com → API keys — AI Picks in Search ("a book about…") |
+| `OPENAI_MODEL` | server only, optional | Pin a model; defaults to the first available of gpt-5-mini, gpt-4.1-mini, gpt-4o-mini |
 | `OPENLIBRARY_CONTACT` | server only, optional | your email/URL for Open Library's User-Agent |
 | `NEXT_PUBLIC_SITE_URL` | server, optional | your production URL, for auth email links |
 

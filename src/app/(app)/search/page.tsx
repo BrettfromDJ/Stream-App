@@ -5,6 +5,7 @@ import { getLibraryIndex } from "@/lib/library/queries";
 import { cardFromResult } from "@/lib/media/card";
 import { isMediaType, type MediaSearchResult } from "@/lib/media/types";
 import { SearchView } from "@/components/search/search-view";
+import { isAiConfigured } from "@/lib/ai/openai";
 import { MediaCard } from "@/components/media/media-card";
 import { Row, ROW_SIZES } from "@/components/media/row";
 import { RowSkeleton } from "@/components/media/skeletons";
@@ -21,7 +22,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   ]);
 
   return (
-    <SearchView initialQuery={q} initialType={type} initialResults={initial} libraryIndex={index}>
+    <SearchView initialQuery={q} initialType={type} initialResults={initial} libraryIndex={index} aiEnabled={isAiConfigured()}>
       <Suspense fallback={<BrowseSkeleton />}>
         <Browse type={type} />
       </Suspense>
