@@ -52,10 +52,10 @@ const SCHEMA = {
 
 const NOUN: Record<MediaType | "all", string> = {
   all: "movies, TV shows, books or video games (whichever fit the request; mix them when it's open-ended)",
-  movie: "movies only",
-  tv: "TV shows only",
-  book: "books only",
-  game: "video games only",
+  movie: "movies, unless the request clearly asks for another medium (then follow the request)",
+  tv: "TV shows, unless the request clearly asks for another medium (then follow the request)",
+  book: "books, unless the request clearly asks for another medium (then follow the request)",
+  game: "video games, unless the request clearly asks for another medium (then follow the request)",
 };
 
 const SYSTEM = `You are the recommendation engine inside a personal media tracker.
@@ -126,7 +126,10 @@ export async function aiSearch(query: string, filter: MediaType | "all"): Promis
     schemaName: "media_picks",
     schema: SCHEMA,
   });
-  const picks = (out.picks ?? []).filter((p) => filter === "all" || p.type === filter).slice(0, 12);
+  // The filter chip is a preference; words in the request ("a book about…") win when they disagree.
+  const all = out.picks ?? [];
+  const preferred = filter === "all" ? all : all.filter((p) => p.type === filter);
+  const picks = (preferred.length ? preferred : all).slice(0, 12);
   // A slow catalog lookup shouldn't hold up the rest: each pick gets 10 seconds.
   const resolved = await Promise.all(
     picks.map((p) => Promise.race([resolve(p), new Promise<null>((r) => setTimeout(() => r(null), 10_000))])),
