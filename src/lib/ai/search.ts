@@ -14,6 +14,8 @@ export interface AiSearchResult {
   /** One friendly sentence about what was found. */
   summary: string;
   picks: AiPick[];
+  /** Suggestions that couldn't be matched to a catalog entry (shown as text, tap to search). */
+  unmatched: { type: MediaType; title: string; creator: string | null; reason: string }[];
 }
 
 interface ModelPick {
@@ -130,6 +132,10 @@ export async function aiSearch(query: string, filter: MediaType | "all"): Promis
     picks.map((p) => Promise.race([resolve(p), new Promise<null>((r) => setTimeout(() => r(null), 10_000))])),
   );
   const seen = new Set<string>();
+  const unmatched = picks
+    .filter((_, i) => !resolved[i])
+    .map(({ type, title, creator, reason }) => ({ type, title, creator, reason }));
+  if (unmatched.length) console.warn("[ai-search] unmatched:", unmatched.map((u) => `${u.type}:${u.title}`).join(", "));
   return {
     summary: out.summary ?? "",
     picks: resolved.filter((p): p is AiPick => {
@@ -137,5 +143,6 @@ export async function aiSearch(query: string, filter: MediaType | "all"): Promis
       const key = `${p.type}:${p.externalId}`;
       return !seen.has(key) && Boolean(seen.add(key));
     }),
+    unmatched,
   };
 }

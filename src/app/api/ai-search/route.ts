@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, { headers: { "Cache-Control": "private, max-age=600" } });
   } catch (err) {
     const kind = err instanceof ProviderError ? err.kind : "unavailable";
-    console.error("[ai-search]", (err as Error).message);
-    return NextResponse.json({ error: kind }, { status: kind === "rate_limited" ? 429 : 502 });
+    const detail = (err as Error).message;
+    console.error("[ai-search]", detail);
+    // The detail is OpenAI's own explanation (quota, model access…) — shown to the signed-in owner to fix setup.
+    return NextResponse.json({ error: kind, detail }, { status: kind === "rate_limited" ? 429 : 502 });
   }
 }

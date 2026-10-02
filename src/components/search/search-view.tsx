@@ -44,6 +44,8 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
     return initialResults;
   });
   const [failedKey, setFailedKey] = useState<string | null>(null);
+  // Set when a title is searched from an AI suggestion: that's a plain title search, not another AI request.
+  const [plainSearch, setPlainSearch] = useState(false);
 
   const trimmed = query.trim();
   const active = trimmed.length >= 2;
@@ -105,7 +107,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
   const showingStale = loading && current;
   const wanted = type === "all" ? MEDIA_TYPES.length : 1;
   const allDown = unavailable.length >= wanted;
-  const ai = aiEnabled && active && wantsAi(trimmed);
+  const ai = aiEnabled && active && !plainSearch && wantsAi(trimmed);
   const unavailableText = new Intl.ListFormat("en", { type: "conjunction" }).format(unavailable.map((t) => TYPE_NOUN_PLURAL[t].toLowerCase()));
 
   return (
@@ -129,7 +131,10 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
               autoCorrect="off"
               spellCheck={false}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPlainSearch(false);
+              }}
               onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
               placeholder={aiEnabled ? "Search a title, or describe what you want" : "Search movies, shows, books & games"}
               className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
@@ -154,7 +159,19 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
       </div>
 
       <div className="mt-4">
-        {ai && <AiPicks key={`${type}:${trimmed.toLowerCase()}`} query={trimmed} type={type} libraryIndex={libraryIndex} />}
+        {ai && (
+          <AiPicks
+            key={`${type}:${trimmed.toLowerCase()}`}
+            query={trimmed}
+            type={type}
+            libraryIndex={libraryIndex}
+            onSearch={(title) => {
+              setQuery(title);
+              setPlainSearch(true);
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+          />
+        )}
         {!active ? (
           children
         ) : !current && loading ? (

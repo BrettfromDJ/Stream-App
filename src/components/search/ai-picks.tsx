@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AiSearchResult } from "@/lib/ai/search";
 import type { SearchFilter } from "@/lib/providers";
@@ -17,10 +17,20 @@ export function wantsAi(query: string) {
   return q.length >= 6 && (words >= 3 || /\b(about|like|similar|set in|with|for|where|featuring)\b/i.test(q));
 }
 
-const cache = new Map<string, AiSearchResult | "error" | "timeout">();
+type Failure = { failed: "error" | "timeout"; detail?: string };
+const cache = new Map<string, AiSearchResult | Failure>();
+const isFailure = (r: AiSearchResult | Failure | undefined): r is Failure => Boolean(r && "failed" in r);
+
+interface Props {
+  query: string;
+  type: SearchFilter;
+  libraryIndex: LibraryIndex;
+  /** Runs a normal title search (for suggestions we couldn't match to a cover). */
+  onSearch: (title: string) => void;
+}
 
 /** "AI Picks": the model's suggestions, each a real catalog entry with a one-line reason. */
-export function AiPicks({ query, type, libraryIndex }: { query: string; type: SearchFilter; libraryIndex: LibraryIndex }) {
+export function AiPicks({ query, type, libraryIndex, onSearch }: Props) {
   const key = `${type}:${query.toLowerCase()}`;
   const [, rerender] = useState(0);
   const [slow, setSlow] = useState(false);
@@ -37,10 +47,11 @@ export function AiPicks({ query, type, libraryIndex }: { query: string; type: Se
         const signal =
           typeof AbortSignal.any === "function" ? AbortSignal.any([controller.signal, AbortSignal.timeout(45_000)]) : controller.signal;
         const res = await fetch(`/api/ai-search?${new URLSearchParams({ q: query, type })}`, { signal });
-        cache.set(key, res.ok ? ((await res.json()) as AiSearchResult) : "error");
+        const body = (await res.json().catch(() => null)) as (AiSearchResult & { detail?: string }) | null;
+        cache.set(key, res.ok && body ? body : { failed: "error", detail: body?.detail ?? `Error ${res.status}` });
       } catch (err) {
         if (controller.signal.aborted) return;
-        cache.set(key, (err as Error).name === "TimeoutError" ? "timeout" : "error");
+        cache.set(key, { failed: (err as Error).name === "TimeoutError" ? "timeout" : "error", detail: (err as Error).message });
       }
       clearTimeout(slowTimer);
       rerender((n) => n + 1);
@@ -52,14 +63,21 @@ export function AiPicks({ query, type, libraryIndex }: { query: string; type: Se
     };
   }, [key, query, type]);
 
-  if (result === "error" || result === "timeout") {
+  if (isFailure(result)) {
     return (
-      <p className="gutter mb-8 text-[13px] text-fg-3">
-        {result === "timeout" ? "AI suggestions took too long" : "AI suggestions aren\u2019t available right now"} — showing title matches.
-      </p>
+      <div className="gutter mb-8">
+        <div className="rounded-2xl bg-white/[0.04] px-4 py-3 text-[13.5px] text-fg-2 md:max-w-xl">
+          <p className="font-semibold text-fg">{result.failed === "timeout" ? "AI suggestions took too long." : "AI suggestions aren\u2019t working right now."}</p>
+          {result.detail && <p className="mt-0.5 break-words">{result.detail}</p>}
+        </div>
+      </div>
     );
   }
-  if (result && !result.picks.length) return null;
+
+  const unmatched = result?.unmatched ?? [];
+  if (result && !result.picks.length && !unmatched.length) {
+    return <p className="gutter mb-8 text-[14px] text-fg-2">AI couldn&apos;t find anything for that — try describing it another way.</p>;
+  }
 
   return (
     <section aria-label="AI Picks" className="mb-10">
@@ -70,24 +88,51 @@ export function AiPicks({ query, type, libraryIndex }: { query: string; type: Se
           </span>
           AI Picks
         </h2>
-        <p className="mt-1 text-[14px] text-fg-2">{result ? result.summary : slow ? "Still thinking — this one's taking a moment…" : "Finding titles that match…"}</p>
+        <p className="mt-1 text-[14px] text-fg-2">{result ? result.summary : slow ? "Still thinking — this one\u2019s taking a moment…" : "Finding titles that match…"}</p>
       </div>
-      <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2 md:gap-3.5">
-        {result
-          ? result.picks.map((p) => (
-              <div key={`${p.type}-${p.externalId}`} className={cn("shrink-0 snap-start", ROW_ITEM.poster)}>
-                <MediaCard media={cardFromResult(p, libraryIndex)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
-                <p className="mt-1 line-clamp-3 px-1 text-[12.5px] leading-snug text-fg-2">{p.reason}</p>
-              </div>
-            ))
-          : Array.from({ length: 6 }, (_, i) => (
-              <div key={i} className={cn("shrink-0", ROW_ITEM.poster)}>
-                <Skeleton className="aspect-[2/3] w-full rounded-[14px]" />
-                <Skeleton className="mt-2 h-3.5 w-4/5 rounded" />
-                <Skeleton className="mt-1.5 h-3 w-3/5 rounded" />
-              </div>
+      {(!result || result.picks.length > 0) && (
+        <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2 md:gap-3.5">
+          {result
+            ? result.picks.map((p) => (
+                <div key={`${p.type}-${p.externalId}`} className={cn("shrink-0 snap-start", ROW_ITEM.poster)}>
+                  <MediaCard media={cardFromResult(p, libraryIndex)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
+                  <p className="mt-1 line-clamp-3 px-1 text-[12.5px] leading-snug text-fg-2">{p.reason}</p>
+                </div>
+              ))
+            : Array.from({ length: 6 }, (_, i) => (
+                <div key={i} className={cn("shrink-0", ROW_ITEM.poster)}>
+                  <Skeleton className="aspect-[2/3] w-full rounded-[14px]" />
+                  <Skeleton className="mt-2 h-3.5 w-4/5 rounded" />
+                  <Skeleton className="mt-1.5 h-3 w-3/5 rounded" />
+                </div>
+              ))}
+        </div>
+      )}
+      {unmatched.length > 0 && (
+        <div className="gutter mt-3">
+          {result!.picks.length > 0 && <p className="mb-2 text-[13px] font-semibold tracking-wide text-fg-3 uppercase">More ideas</p>}
+          <ul className="overflow-hidden rounded-2xl bg-white/[0.04]">
+            {unmatched.map((u) => (
+              <li key={`${u.type}:${u.title}`} className="border-b border-white/[0.06] last:border-0">
+                <button
+                  type="button"
+                  onClick={() => onSearch(u.title)}
+                  className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-white/[0.04] active:bg-white/[0.06]"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[15px] font-semibold">
+                      {u.title}
+                      {u.creator && <span className="font-normal text-fg-3"> · {u.creator}</span>}
+                    </span>
+                    <span className="mt-0.5 block text-[13px] leading-snug text-fg-2">{u.reason}</span>
+                  </span>
+                  <Search className="mt-1 size-4 shrink-0 text-fg-3" />
+                </button>
+              </li>
             ))}
-      </div>
+          </ul>
+        </div>
+      )}
     </section>
   );
 }
