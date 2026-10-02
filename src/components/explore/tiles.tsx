@@ -1,14 +1,19 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { exploreHref, genresFor, presetsFor } from "@/lib/discover/taxonomy";
-import type { MediaType } from "@/lib/media/types";
+import type { MediaSearchResult, MediaType } from "@/lib/media/types";
+import { Artwork } from "@/components/media/artwork";
+import { presetItems } from "./collection-row";
 
 export interface Tile {
   href: string;
   label: string;
   hue: number;
   blurb?: string;
+  /** Mood/collection tiles: the preset whose covers decorate the card. */
+  preset?: { type: MediaType; slug: string };
 }
 
 function tileStyle(hue: number) {
@@ -49,32 +54,74 @@ export function GenreTiles({ title, tiles, allHref }: { title: string; tiles: Ti
   );
 }
 
-/** Larger editorial mood cards with a one-line description. */
+/** Larger editorial mood cards: a fan of real covers from the collection, then the name and a one-liner. */
 export function MoodTiles({ title, tiles }: { title: string; tiles: Tile[] }) {
+  return (
+    <Suspense fallback={<MoodTileRow title={title} tiles={tiles} />}>
+      <MoodTilesWithArt title={title} tiles={tiles} />
+    </Suspense>
+  );
+}
+
+async function MoodTilesWithArt({ title, tiles }: { title: string; tiles: Tile[] }) {
+  const covers = await Promise.all(
+    tiles.map((t) =>
+      t.preset
+        ? presetItems(t.preset.type, t.preset.slug)
+            .then((l) => l.filter((x) => x.artworkUrl).slice(0, 3))
+            .catch(() => [])
+        : Promise.resolve([]),
+    ),
+  );
+  return <MoodTileRow title={title} tiles={tiles} covers={covers} />;
+}
+
+function MoodTileRow({ title, tiles, covers }: { title: string; tiles: Tile[]; covers?: MediaSearchResult[][] }) {
   return (
     <section aria-label={title}>
       <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">{title}</h2>
       <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
-        {tiles.map((t) => (
-          <Link
-            key={t.href}
-            href={t.href}
-            className={cn(
-              "group relative flex aspect-[5/4] w-[62vw] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[20px] p-4 ring-1 ring-white/[0.06]",
-              "transition-transform duration-300 active:scale-[0.98] sm:w-[40vw] md:w-[260px] md:hover:scale-[1.02]",
-            )}
-            style={tileStyle(t.hue)}
-          >
-            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-            <p className="relative text-[21px] leading-tight font-bold tracking-[-0.02em] text-white">{t.label}</p>
-            {t.blurb && <p className="relative mt-1 line-clamp-2 text-[13.5px] leading-snug text-white/70">{t.blurb}</p>}
-          </Link>
-        ))}
+        {tiles.map((t, i) => {
+          const fan = covers?.[i] ?? [];
+          return (
+            <Link
+              key={t.href}
+              href={t.href}
+              className={cn(
+                "group relative flex aspect-square w-[64vw] shrink-0 snap-start flex-col justify-end overflow-hidden rounded-[22px] p-4 ring-1 ring-white/[0.07]",
+                "transition-transform duration-300 active:scale-[0.98] sm:w-[40vw] md:w-[280px] md:hover:scale-[1.02]",
+              )}
+              style={tileStyle(t.hue)}
+            >
+              {fan.length > 0 && (
+                <div aria-hidden className="absolute inset-x-0 top-[9%] flex h-[58%] justify-center">
+                  {fan.map((item, j) => {
+                    const pos = fan.length === 1 ? 0 : j - (fan.length - 1) / 2;
+                    return (
+                      <div
+                        key={item.externalId}
+                        className="absolute top-0 aspect-[2/3] h-full overflow-hidden rounded-[10px] shadow-[0_18px_40px_-12px_rgba(0,0,0,0.9)] ring-1 ring-white/10 transition-transform duration-500 group-hover:-translate-y-1"
+                        style={{
+                          transform: `translateX(${pos * 62}%) rotate(${pos * 9}deg) translateY(${Math.abs(pos) * 8}%) scale(${pos === 0 ? 1 : 0.9})`,
+                          zIndex: 3 - Math.abs(pos),
+                        }}
+                      >
+                        <Artwork src={item.artworkUrl} title={item.title} type={item.type} sizes="120px" compactFallback />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div aria-hidden className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
+              <p className="relative text-[21px] leading-tight font-bold tracking-[-0.02em] text-white">{t.label}</p>
+              {t.blurb && <p className="relative mt-1 line-clamp-2 text-[13.5px] leading-snug text-white/75">{t.blurb}</p>}
+            </Link>
+          );
+        })}
       </div>
     </section>
   );
 }
-
 
 export function genreTilesFor(type: MediaType, limit = 12): Tile[] {
   return genresFor(type)
@@ -88,5 +135,6 @@ export function moodTilesFor(types: MediaType[]): Tile[] {
     label: p.title,
     hue: p.hue,
     blurb: p.blurb,
+    preset: { type: p.type, slug: p.slug },
   }));
 }

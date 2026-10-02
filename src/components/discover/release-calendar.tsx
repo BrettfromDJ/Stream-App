@@ -61,14 +61,14 @@ export async function ReleaseCalendar({
       <h2 className="mb-4 text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">{title}</h2>
       <div className="flex flex-col gap-6">
         {groups.map((g) => (
-          <div key={g.key} className="md:grid md:grid-cols-[140px_1fr] md:gap-6">
+          <div key={g.key} className="md:grid md:grid-cols-[140px_minmax(0,1fr)] md:gap-6">
             <p className="mb-2 text-[13px] font-bold tracking-[0.08em] text-fg-3 uppercase md:mt-1">{g.label}</p>
-            <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {g.items.slice(0, 9).map((item) => {
                 const d = utc(item.releaseDate!);
                 const card = cardFromResult(item, index);
                 return (
-                  <li key={item.externalId}>
+                  <li key={item.externalId} className="min-w-0">
                     <Link
                       href={mediaHref(item.type, item.externalId)}
                       className="group flex items-center gap-3 rounded-2xl bg-white/[0.035] p-2 pr-3 transition-colors hover:bg-white/[0.06]"
