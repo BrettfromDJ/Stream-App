@@ -4,6 +4,9 @@ import { ProviderError } from "@/lib/providers/http";
 import { isAiConfigured } from "@/lib/ai/openai";
 import { aiSearch } from "@/lib/ai/search";
 
+// Model call + catalog lookups; give it room on Vercel (the default limit can be as low as 10s).
+export const maxDuration = 60;
+
 /** "Find me a book about…" — AI suggestions resolved to real catalog entries. */
 export async function GET(request: NextRequest) {
   if (!isAiConfigured()) return NextResponse.json({ error: "not_configured" }, { status: 404 });

@@ -125,7 +125,10 @@ export async function aiSearch(query: string, filter: MediaType | "all"): Promis
     schema: SCHEMA,
   });
   const picks = (out.picks ?? []).filter((p) => filter === "all" || p.type === filter).slice(0, 12);
-  const resolved = await Promise.all(picks.map(resolve));
+  // A slow catalog lookup shouldn't hold up the rest: each pick gets 10 seconds.
+  const resolved = await Promise.all(
+    picks.map((p) => Promise.race([resolve(p), new Promise<null>((r) => setTimeout(() => r(null), 10_000))])),
+  );
   const seen = new Set<string>();
   return {
     summary: out.summary ?? "",

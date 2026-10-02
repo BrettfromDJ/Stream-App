@@ -27,7 +27,7 @@ interface ChatResponse {
 }
 
 /** Asks for a JSON object matching `schema`. Identical requests are cached for a day. */
-export async function chatJson<T>(opts: { system: string; user: string; schemaName: string; schema: object }): Promise<T> {
+export async function chatJson<T>(opts: { system: string; user: string; schemaName: string; schema: object; timeoutMs?: number }): Promise<T> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new ProviderError("openai", "not_configured");
 
@@ -46,8 +46,10 @@ export async function chatJson<T>(opts: { system: string; user: string; schemaNa
             { role: "user", content: opts.user },
           ],
           response_format: { type: "json_schema", json_schema: { name: opts.schemaName, strict: true, schema: opts.schema } },
+          // Reasoning models (gpt-5*, o*) think at length by default; recommendations don't need it.
+          ...(/^(gpt-5|o\d)/.test(model) ? { reasoning_effort: "minimal" } : {}),
         }),
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
         next: { revalidate: 60 * 60 * 24 },
       });
     } catch (err) {

@@ -17,36 +17,47 @@ export function wantsAi(query: string) {
   return q.length >= 6 && (words >= 3 || /\b(about|like|similar|set in|with|for|where|featuring)\b/i.test(q));
 }
 
-const cache = new Map<string, AiSearchResult | "error">();
+const cache = new Map<string, AiSearchResult | "error" | "timeout">();
 
 /** "AI Picks": the model's suggestions, each a real catalog entry with a one-line reason. */
 export function AiPicks({ query, type, libraryIndex }: { query: string; type: SearchFilter; libraryIndex: LibraryIndex }) {
   const key = `${type}:${query.toLowerCase()}`;
   const [, rerender] = useState(0);
+  const [slow, setSlow] = useState(false);
   const result = cache.get(key);
 
   useEffect(() => {
     if (cache.has(key)) return;
     const controller = new AbortController();
+    const slowTimer = setTimeout(() => setSlow(true), 8000);
     // Wait for a pause in typing: each request costs a little.
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/ai-search?${new URLSearchParams({ q: query, type })}`, { signal: controller.signal });
+        // Never spin forever: give up after 45s and fall back to title matches.
+        const signal =
+          typeof AbortSignal.any === "function" ? AbortSignal.any([controller.signal, AbortSignal.timeout(45_000)]) : controller.signal;
+        const res = await fetch(`/api/ai-search?${new URLSearchParams({ q: query, type })}`, { signal });
         cache.set(key, res.ok ? ((await res.json()) as AiSearchResult) : "error");
       } catch (err) {
-        if ((err as Error).name === "AbortError") return;
-        cache.set(key, "error");
+        if (controller.signal.aborted) return;
+        cache.set(key, (err as Error).name === "TimeoutError" ? "timeout" : "error");
       }
+      clearTimeout(slowTimer);
       rerender((n) => n + 1);
     }, 800);
     return () => {
       controller.abort();
       clearTimeout(timer);
+      clearTimeout(slowTimer);
     };
   }, [key, query, type]);
 
-  if (result === "error") {
-    return <p className="gutter mb-8 text-[13px] text-fg-3">AI suggestions aren&apos;t available right now — showing title matches.</p>;
+  if (result === "error" || result === "timeout") {
+    return (
+      <p className="gutter mb-8 text-[13px] text-fg-3">
+        {result === "timeout" ? "AI suggestions took too long" : "AI suggestions aren\u2019t available right now"} — showing title matches.
+      </p>
+    );
   }
   if (result && !result.picks.length) return null;
 
@@ -59,7 +70,7 @@ export function AiPicks({ query, type, libraryIndex }: { query: string; type: Se
           </span>
           AI Picks
         </h2>
-        <p className="mt-1 text-[14px] text-fg-2">{result ? result.summary : "Finding titles that match…"}</p>
+        <p className="mt-1 text-[14px] text-fg-2">{result ? result.summary : slow ? "Still thinking — this one's taking a moment…" : "Finding titles that match…"}</p>
       </div>
       <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-2.5 overflow-x-auto pb-2 md:gap-3.5">
         {result
