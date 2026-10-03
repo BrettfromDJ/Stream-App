@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, PersonProfile, SeasonDetail, SeasonSummary, WatchAvailability, WatchProvider } from "@/lib/media/types";
+import type { CommunityReviews, MediaDetail, MediaFact, MediaSearchResult, MediaVideo, PersonProfile, SeasonDetail, SeasonSummary, WatchAvailability, WatchProvider } from "@/lib/media/types";
 import { formatDate, formatRuntime, yearFrom } from "@/lib/media/format";
 import { ProviderError, fetchJson } from "./http";
 
@@ -55,6 +55,37 @@ interface TmdbDetailCommon {
   similar?: TmdbPaged<TmdbListItem>;
   videos?: { results: TmdbVideo[] };
   "watch/providers"?: { results?: Record<string, TmdbWatchRegion> };
+  reviews?: { results?: TmdbReview[]; total_results?: number };
+}
+
+interface TmdbReview {
+  id: string;
+  author?: string;
+  author_details?: { rating?: number | null; username?: string };
+  content?: string;
+  created_at?: string;
+}
+
+/** TMDB user reviews (newest first from the API; we lead with rated, substantial ones). */
+function reviewsOf(d: TmdbDetailCommon, kind: TmdbKind): CommunityReviews | null {
+  const list = (d.reviews?.results ?? [])
+    .filter((r) => (r.content?.trim().length ?? 0) >= 80)
+    .map((r) => ({
+      id: r.id,
+      author: r.author || r.author_details?.username || null,
+      rating: r.author_details?.rating ? Math.round(r.author_details.rating) / 2 : null,
+      text: (r.content ?? "")
+        .replace(/<[^>]+>/g, "")
+        .replace(/\*\*(.+?)\*\*/g, "$1")
+        .replace(/_(.+?)_/g, "$1")
+        .replace(/\r/g, "")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim(),
+      date: r.created_at?.slice(0, 10) ?? null,
+      likes: 0,
+    }));
+  if (!list.length) return null;
+  return { source: "TMDB", url: `https://www.themoviedb.org/${kind}/${d.id}/reviews`, reviews: list.slice(0, 10) };
 }
 
 interface TmdbProvider {
@@ -271,7 +302,7 @@ function facts(pairs: [string, string | number | null | undefined | false][]): M
 export async function getMovie(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbMovieDetail>(
     `/movie/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,release_dates,videos,watch/providers", include_video_language: "en,null" },
+    { append_to_response: "credits,recommendations,release_dates,videos,watch/providers,reviews", include_video_language: "en,null" },
     60 * 60 * 24,
   );
   const base = normalize({ ...d, id: d.id }, "movie");
@@ -303,6 +334,7 @@ export async function getMovie(id: string): Promise<MediaDetail> {
     cast: castOf(d.credits),
     videos: videosOf(d),
     watch: watchOf(d),
+    reviews: reviewsOf(d, "movie"),
     related: normalizeList(d.recommendations?.results, "movie").slice(0, 18),
     score: score(d),
     metadata: { genres: d.genres?.map((g) => g.name) ?? [], runtime: d.runtime ?? null, director },
@@ -312,7 +344,7 @@ export async function getMovie(id: string): Promise<MediaDetail> {
 export async function getTv(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbTvDetail>(
     `/tv/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,content_ratings,videos,watch/providers", include_video_language: "en,null" },
+    { append_to_response: "credits,recommendations,content_ratings,videos,watch/providers,reviews", include_video_language: "en,null" },
     60 * 60 * 12,
   );
   const base = normalize({ ...d, id: d.id }, "tv");
@@ -349,6 +381,7 @@ export async function getTv(id: string): Promise<MediaDetail> {
     cast: castOf(d.credits),
     videos: videosOf(d),
     watch: watchOf(d),
+    reviews: reviewsOf(d, "tv"),
     related: normalizeList(d.recommendations?.results, "tv").slice(0, 18),
     score: score(d),
     seasons: seasonsOf(d),

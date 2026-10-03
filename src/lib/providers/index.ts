@@ -1,12 +1,14 @@
 import "server-only";
 import type { MediaDetail, MediaSearchResult, MediaType } from "@/lib/media/types";
 import { ProviderError, safely } from "./http";
+import { cache } from "react";
 import * as tmdb from "./tmdb";
 import * as ol from "./openlibrary";
 import * as hardcover from "./hardcover";
 import * as nyt from "./nyt";
 import * as steam from "./steam";
 import * as igdb from "./igdb";
+import * as netflix from "./netflix";
 
 export { ProviderError };
 
@@ -91,7 +93,11 @@ export interface DiscoveryRow {
 }
 
 /** Discovery rows for Home. Rows for unconfigured or failing providers resolve to empty and are hidden. */
+/** Netflix's weekly Top 10, deduped per request (Home shows two rows from one fetch). */
+const netflixTop10 = cache(() => safely<netflix.NetflixTop10 | null>(netflix.netflixTop10, null));
+
 export const discovery = {
+  netflixTop10,
   trendingMovies: () => safely(tmdb.trendingMovies, []),
   popularShows: () => safely(tmdb.popularTv, []),
   trendingShows: () => safely(tmdb.trendingTv, []),

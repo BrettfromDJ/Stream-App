@@ -13,7 +13,8 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { LibraryPanel } from "@/components/library/library-panel";
 import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
-import { TimeToBeat, WhereToBuy } from "./game-extras";
+import { SteamReviewsSection, TimeToBeat, WhereToBuy } from "./game-extras";
+import { ReviewsSection } from "./reviews";
 import { WhereToWatch } from "./where-to-watch";
 import { EpisodeTracker } from "./episode-tracker";
 import { ProgressTracker } from "./progress-tracker";
@@ -246,6 +247,8 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           {detail.watch && <WhereToWatch watch={detail.watch} services={(await getUser())?.services ?? []} />}
           {detail.timeToBeat && <TimeToBeat data={detail.timeToBeat} />}
           {detail.stores && detail.stores.length > 0 && <WhereToBuy stores={detail.stores} />}
+          {detail.steamReviews && <SteamReviewsSection data={detail.steamReviews} />}
+          {detail.reviews && detail.reviews.reviews.length > 0 && <ReviewsSection data={detail.reviews} />}
 
           {detail.facts.length > 0 && (
             <section>

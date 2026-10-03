@@ -1,5 +1,5 @@
 import "server-only";
-import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo } from "@/lib/media/types";
+import type { MediaDetail, MediaFact, MediaSearchResult, MediaVideo, SteamReviews } from "@/lib/media/types";
 import { cleanDescription, formatDate } from "@/lib/media/format";
 import { ProviderError, fetchJson, safely } from "./http";
 
@@ -275,8 +275,61 @@ async function steamPrice(appId: string) {
   };
 }
 
-/** Store links + Steam price + time to beat. Each part fails independently. */
-async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "timeToBeat">> {
+interface SteamReviewsResponse {
+  success?: number;
+  query_summary?: { review_score_desc?: string; total_positive?: number; total_negative?: number; total_reviews?: number };
+  reviews?: {
+    recommendationid: string;
+    review?: string;
+    voted_up?: boolean;
+    votes_up?: number;
+    timestamp_created?: number;
+    author?: { playtime_at_review?: number; playtime_forever?: number };
+  }[];
+}
+
+/** Readable prose: skips one-liners, ASCII art and walls of symbols that Steam reviews are known for. */
+function isReadable(text: string) {
+  const t = text.trim();
+  if (t.length < 60 || t.length > 3000) return false;
+  const letters = (t.match(/\p{L}/gu) ?? []).length;
+  return letters / t.length > 0.6 && !/(.)\1{9,}/u.test(t);
+}
+
+/** Steam's review score ("Very Positive · 92%") plus its most helpful readable reviews, in English. */
+async function steamReviews(appId: string): Promise<SteamReviews | null> {
+  const data = await fetchJson<SteamReviewsResponse>(
+    `https://store.steampowered.com/appreviews/${appId}?json=1&language=english&purchase_type=all&filter=all&num_per_page=40&review_type=all`,
+    { provider: "steam", revalidate: 60 * 60 * 12, timeoutMs: 6000 },
+  );
+  const q = data.query_summary;
+  if (data.success !== 1 || !q?.total_reviews) return null;
+  const positive = q.total_positive ?? 0;
+  const total = (q.total_positive ?? 0) + (q.total_negative ?? 0) || q.total_reviews;
+  return {
+    score: q.review_score_desc ?? "",
+    percent: total ? Math.round((positive / total) * 100) : null,
+    total: q.total_reviews,
+    url: `https://store.steampowered.com/app/${appId}/#app_reviews_hash`,
+    reviews: (data.reviews ?? [])
+      .filter((r) => r.review && isReadable(r.review))
+      .slice(0, 10)
+      .map((r) => {
+        const minutes = r.author?.playtime_at_review ?? r.author?.playtime_forever;
+        return {
+          id: r.recommendationid,
+          text: r.review!.replace(/\[\/?[a-z0-9*=#]+\]/gi, "").replace(/\n{3,}/g, "\n\n").trim(),
+          positive: Boolean(r.voted_up),
+          hours: minutes ? Math.round(minutes / 60) : null,
+          date: new Date((r.timestamp_created ?? 0) * 1000).toISOString().slice(0, 10),
+          helpful: r.votes_up ?? 0,
+        };
+      }),
+  };
+}
+
+/** Store links + Steam price & reviews + time to beat. Each part fails independently. */
+async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "timeToBeat" | "steamReviews">> {
   const day = 60 * 60 * 24;
   const [websites, external, ttb] = await Promise.all([
     safely(() => igdb<{ websites?: { url?: string }[] }[]>("games", `fields websites.url; where id = ${id};`, day), []),
@@ -300,7 +353,10 @@ async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "tim
 
   const steam = stores.find((s) => s.name === "Steam");
   const appId = steam?.url.match(/\/app\/(\d+)/)?.[1];
-  if (steam && appId) Object.assign(steam, (await safely(() => steamPrice(appId), null)) ?? {});
+  const [price, reviews] = appId
+    ? await Promise.all([safely(() => steamPrice(appId), null), safely(() => steamReviews(appId), null)])
+    : [null, null];
+  if (steam && price) Object.assign(steam, price);
 
   const t = ttb[0];
   const hours = (seconds?: number) => (seconds && seconds > 0 ? Math.max(0.5, Math.round((seconds / 3600) * 2) / 2) : null);
@@ -312,6 +368,7 @@ async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "tim
 
   return {
     stores,
+    steamReviews: reviews,
     timeToBeat: entries.length ? { entries, submissions: t?.count ?? null } : null,
   };
 }

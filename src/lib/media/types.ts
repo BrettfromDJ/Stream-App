@@ -63,6 +63,10 @@ export interface MediaDetail extends MediaSearchResult {
   timeToBeat?: { entries: { label: string; hours: number }[]; submissions: number | null } | null;
   /** Games: official store pages, with a live price where available. */
   stores?: { name: string; url: string; price?: string | null; originalPrice?: string | null; discount?: number | null }[];
+  /** Games: Steam's player review score and the most helpful reviews. */
+  steamReviews?: SteamReviews | null;
+  /** Movies & TV (TMDB users) and books (Hardcover readers): written reviews. */
+  reviews?: CommunityReviews | null;
   /** TV: season list (episodes load per season). */
   seasons?: SeasonSummary[];
   /** TV: whether the show has finished airing. */
@@ -153,6 +157,46 @@ export interface CardMedia {
 }
 
 /** An author page. */
+export interface SteamReview {
+  id: string;
+  text: string;
+  positive: boolean;
+  /** Hours the reviewer had played when they wrote it. */
+  hours: number | null;
+  /** ISO date */
+  date: string;
+  helpful: number;
+}
+
+export interface UserReview {
+  id: string;
+  author: string | null;
+  /** Out of 5, when the reviewer gave one. */
+  rating: number | null;
+  text: string;
+  /** ISO date */
+  date: string | null;
+  likes: number;
+  spoiler?: boolean;
+}
+
+export interface CommunityReviews {
+  /** e.g. "TMDB", "Hardcover" */
+  source: string;
+  /** "See all" link on the source site. */
+  url: string | null;
+  reviews: UserReview[];
+}
+
+export interface SteamReviews {
+  /** Steam's label, e.g. "Very Positive", "Mixed". */
+  score: string;
+  percent: number | null;
+  total: number;
+  url: string;
+  reviews: SteamReview[];
+}
+
 /** A director, creator or actor (TMDB). */
 export interface PersonProfile {
   id: string;

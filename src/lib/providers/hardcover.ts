@@ -1,5 +1,5 @@
 import "server-only";
-import type { AuthorProfile, MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
+import type { AuthorProfile, CommunityReviews, MediaDetail, MediaFact, MediaSearchResult } from "@/lib/media/types";
 import { cleanDescription, formatDate, normalizeDate } from "@/lib/media/format";
 import { ProviderError, fetchJson, safely } from "./http";
 
@@ -327,6 +327,8 @@ export async function getBook(id: string): Promise<MediaDetail> {
       { editions: [] },
     ),
   ]);
+  // Reader reviews load alongside the related rows below; never fatal.
+  const reviews = safely(() => bookReviews(Number(id)), null);
 
   const b = data.books[0];
   if (!b) throw new ProviderError("hardcover", "not_found");
@@ -376,8 +378,53 @@ export async function getBook(id: string): Promise<MediaDetail> {
     facts,
     score:
       b.rating && (b.ratings_count ?? 0) >= 5 ? { value: Math.round(b.rating * 10) / 10, max: 5, source: "Hardcover" } : null,
+    reviews: await reviews,
     metadata: { authors, pages, isbn, genres },
   };
+}
+
+interface HcUserBook {
+  id: number;
+  rating?: number | null;
+  review_raw?: string | null;
+  reviewed_at?: string | null;
+  likes_count?: number | null;
+  review_has_spoilers?: boolean | null;
+  user?: { username?: string | null } | null;
+}
+
+/** Most-liked written reviews from Hardcover readers. */
+async function bookReviews(id: number): Promise<CommunityReviews | null> {
+  const data = await gql<{ user_books: HcUserBook[]; books: { slug?: string | null }[] }>(
+    `query Reviews($id: Int!) {
+       user_books(
+         where: { book_id: { _eq: $id }, has_review: { _eq: true } }
+         order_by: [{ likes_count: desc_nulls_last }, { reviewed_at: desc_nulls_last }]
+         limit: 20
+       ) {
+         id rating review_raw reviewed_at likes_count review_has_spoilers
+         user { username }
+       }
+       books(where: { id: { _eq: $id } }, limit: 1) { slug }
+     }`,
+    { id },
+    60 * 60 * 12,
+  );
+  const reviews = (data.user_books ?? [])
+    .filter((r) => (r.review_raw?.trim().length ?? 0) >= 60)
+    .slice(0, 10)
+    .map((r) => ({
+      id: String(r.id),
+      author: r.user?.username ? `@${r.user.username}` : null,
+      rating: r.rating ?? null,
+      text: r.review_raw!.replace(/\r/g, "").replace(/\n{3,}/g, "\n\n").trim(),
+      date: r.reviewed_at?.slice(0, 10) ?? null,
+      likes: r.likes_count ?? 0,
+      spoiler: Boolean(r.review_has_spoilers),
+    }));
+  if (!reviews.length) return null;
+  const slug = data.books?.[0]?.slug;
+  return { source: "Hardcover", url: slug ? `https://hardcover.app/books/${slug}/reviews` : null, reviews };
 }
 
 /* ------------------------------------------------------------- books hub */
