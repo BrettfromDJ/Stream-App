@@ -185,6 +185,8 @@ export interface CommunityReviews {
   source: string;
   /** "See all" link on the source site. */
   url: string | null;
+  /** Average score across everyone who rated it on the source site. */
+  overall?: { value: number; max: number; count: number } | null;
   reviews: UserReview[];
 }
 

@@ -378,7 +378,7 @@ export async function getBook(id: string): Promise<MediaDetail> {
     facts,
     score:
       b.rating && (b.ratings_count ?? 0) >= 5 ? { value: Math.round(b.rating * 10) / 10, max: 5, source: "Hardcover" } : null,
-    reviews: await reviews,
+    reviews: withOverall(await reviews, b),
     metadata: { authors, pages, isbn, genres },
   };
 }
@@ -391,6 +391,13 @@ interface HcUserBook {
   likes_count?: number | null;
   review_has_spoilers?: boolean | null;
   user?: { username?: string | null } | null;
+}
+
+/** Adds the average reader rating, so the section has a headline score even without written reviews. */
+function withOverall(written: CommunityReviews | null, b: HcBook): CommunityReviews | null {
+  const overall = b.rating && (b.ratings_count ?? 0) >= 5 ? { value: Math.round(b.rating * 100) / 100, max: 5, count: b.ratings_count! } : null;
+  if (!written && !overall) return null;
+  return { source: "Hardcover", url: written?.url ?? null, reviews: written?.reviews ?? [], overall };
 }
 
 /** Most-liked written reviews from Hardcover readers. */

@@ -84,8 +84,10 @@ function reviewsOf(d: TmdbDetailCommon, kind: TmdbKind): CommunityReviews | null
       date: r.created_at?.slice(0, 10) ?? null,
       likes: 0,
     }));
-  if (!list.length) return null;
-  return { source: "TMDB", url: `https://www.themoviedb.org/${kind}/${d.id}/reviews`, reviews: list.slice(0, 10) };
+  const overall =
+    d.vote_average && (d.vote_count ?? 0) >= 20 ? { value: Math.round(d.vote_average * 10) / 10, max: 10, count: d.vote_count! } : null;
+  if (!list.length && !overall) return null;
+  return { source: "TMDB", url: `https://www.themoviedb.org/${kind}/${d.id}/reviews`, overall, reviews: list.slice(0, 10) };
 }
 
 interface TmdbProvider {

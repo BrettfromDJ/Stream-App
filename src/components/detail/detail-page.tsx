@@ -248,7 +248,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           {detail.timeToBeat && <TimeToBeat data={detail.timeToBeat} />}
           {detail.stores && detail.stores.length > 0 && <WhereToBuy stores={detail.stores} />}
           {detail.steamReviews && <SteamReviewsSection data={detail.steamReviews} />}
-          {detail.reviews && detail.reviews.reviews.length > 0 && <ReviewsSection data={detail.reviews} />}
+          {detail.reviews && (detail.reviews.reviews.length > 0 || detail.reviews.overall) && <ReviewsSection data={detail.reviews} />}
 
           {detail.facts.length > 0 && (
             <section>
