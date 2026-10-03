@@ -13,7 +13,6 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { GRID_SIZES, MediaGrid } from "@/components/media/grid";
 import { GridSkeleton, RowSkeleton } from "@/components/media/skeletons";
 import { cn } from "@/lib/utils";
-import { AiPicks, wantsAi } from "./ai-picks";
 
 const FILTERS: { value: SearchFilter; label: string }[] = [
   { value: "all", label: "All" },
@@ -25,8 +24,6 @@ interface Props {
   initialType: SearchFilter;
   initialResults: GroupedSearch | null;
   libraryIndex: LibraryIndex;
-  /** OpenAI is configured: descriptive queries also get AI Picks. */
-  aiEnabled?: boolean;
   /** Server-rendered browse rows shown before typing. */
   children: ReactNode;
 }
@@ -34,7 +31,7 @@ interface Props {
 // Survives navigations within the session so going back to Search is instant.
 const cache = new Map<string, GroupedSearch>();
 
-export function SearchView({ initialQuery, initialType, initialResults, libraryIndex, aiEnabled, children }: Props) {
+export function SearchView({ initialQuery, initialType, initialResults, libraryIndex, children }: Props) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState(initialQuery);
@@ -44,10 +41,6 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
     return initialResults;
   });
   const [failedKey, setFailedKey] = useState<string | null>(null);
-  // Set when a title is searched from an AI suggestion: that's a plain title search, not another AI request.
-  const [plainSearch, setPlainSearch] = useState(false);
-  // With AI Picks showing, literal title matches for a sentence are mostly noise: tucked behind a button.
-  const [showTitleMatches, setShowTitleMatches] = useState(false);
 
   const trimmed = query.trim();
   const active = trimmed.length >= 2;
@@ -109,7 +102,6 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
   const showingStale = loading && current;
   const wanted = type === "all" ? MEDIA_TYPES.length : 1;
   const allDown = unavailable.length >= wanted;
-  const ai = aiEnabled && active && !plainSearch && wantsAi(trimmed);
   const unavailableText = new Intl.ListFormat("en", { type: "conjunction" }).format(unavailable.map((t) => TYPE_NOUN_PLURAL[t].toLowerCase()));
 
   return (
@@ -133,13 +125,9 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
               autoCorrect="off"
               spellCheck={false}
               value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPlainSearch(false);
-                setShowTitleMatches(false);
-              }}
+              onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-              placeholder={aiEnabled ? "Search a title, or describe what you want" : "Search movies, shows, books & games"}
+              placeholder="Search movies, shows, books & games"
               className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none"
             />
             {query && (
@@ -162,19 +150,6 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
       </div>
 
       <div className="mt-4">
-        {ai && (
-          <AiPicks
-            key={`${type}:${trimmed.toLowerCase()}`}
-            query={trimmed}
-            type={type}
-            libraryIndex={libraryIndex}
-            onSearch={(title) => {
-              setQuery(title);
-              setPlainSearch(true);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          />
-        )}
         {!active ? (
           children
         ) : !current && loading ? (
@@ -196,21 +171,11 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
               </p>
             )}
             {total === 0 && !loading ? (
-              ai ? null : <Message title={`No results for “${trimmed}”`} body="Try a different spelling or a shorter title." />
-            ) : ai && !showTitleMatches ? (
-              <div className="gutter">
-                <button
-                  type="button"
-                  onClick={() => setShowTitleMatches(true)}
-                  className="h-10 max-w-full truncate rounded-full bg-white/[0.06] px-4 text-[14px] font-medium text-fg-2 hover:text-fg"
-                >
-                  Show {total} title match{total === 1 ? "" : "es"} for “{trimmed}”
-                </button>
-              </div>
+              <Message title={`No results for “${trimmed}”`} body="Try a different spelling or a shorter title." />
             ) : type === "all" ? (
               <div className="flex flex-col gap-9 md:gap-11">
                 {groups.map((t) => (
-                  <Row key={t} title={ai ? `${TYPE_NOUN_PLURAL[t]} · Title Matches` : TYPE_NOUN_PLURAL[t]}>
+                  <Row key={t} title={TYPE_NOUN_PLURAL[t]}>
                     {current!.results[t].map((r) => (
                       <MediaCard key={r.externalId} media={cardFromResult(r, libraryIndex)} sizes={ROW_SIZES.poster} showRating={false} showInLibrary />
                     ))}

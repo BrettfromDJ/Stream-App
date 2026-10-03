@@ -554,16 +554,3 @@ export async function quickGames(where: string[], page: number, maxHours = 12) {
     });
   return { items, hasMore: times.length === 80 };
 }
-
-/** Games *about* something, via IGDB keyword tags, most-rated first. */
-export async function gamesAboutKeyword(term: string): Promise<MediaSearchResult[]> {
-  const keywords = await igdb<{ id: number }[]>("keywords", `fields id; search "${escape(term)}"; limit 6;`, 60 * 60 * 24 * 7);
-  if (!keywords.length) return [];
-  const data = await igdb<IgdbGame[]>(
-    "games",
-    `${LIST_FIELDS} where keywords = (${keywords.map((k) => k.id).join(",")}) & cover != null & version_parent = null;
-     sort total_rating_count desc; limit 30;`,
-    60 * 60 * 24,
-  );
-  return data.map(normalize).filter((g) => g.artworkUrl);
-}

@@ -316,24 +316,3 @@ export async function exploreBooks(q: {
   });
   return { items: data.docs.filter((d) => d.cover_i).map(normalizeDoc), hasMore: data.docs.length === 30 };
 }
-
-/**
- * Books *about* something (library subject headings), most-read first — so a search for
- * "gold mining" finds books on the topic whatever they're titled.
- */
-export async function booksAboutSubject(subject: string): Promise<MediaSearchResult[]> {
-  const run = async (q: string) => {
-    const params = new URLSearchParams({ q, sort: "readinglog", limit: "40", fields: SEARCH_FIELDS });
-    const data = await fetchJson<{ docs: OlSearchDoc[] }>(`${API}/search.json?${params}`, {
-      provider: "openlibrary",
-      revalidate: 60 * 60 * 24,
-      headers,
-      timeoutMs: 10000,
-    });
-    return data.docs.filter((d) => d.cover_i).map(normalizeDoc);
-  };
-  const clean = subject.replace(/["\\]/g, "").trim();
-  const bySubject = await run(`subject:"${clean}" language:eng`);
-  // Narrow headings can be sparse; fall back to a broader keyword match on subjects.
-  return bySubject.length >= 6 ? bySubject : [...bySubject, ...(await run(`subject:(${clean}) language:eng`))];
-}

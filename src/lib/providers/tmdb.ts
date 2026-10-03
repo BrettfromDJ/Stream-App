@@ -647,22 +647,3 @@ export async function getPerson(id: string): Promise<PersonProfile> {
     credits: all.size,
   };
 }
-
-/* ------------------------------------------------------------- by keyword */
-
-/**
- * Movies or shows *about* something, via TMDB's keyword tags ("gold mining", "gold rush"),
- * most-voted first.
- */
-export async function aboutKeyword(kind: TmdbKind, term: string): Promise<MediaSearchResult[]> {
-  const found = await tmdb<TmdbPaged<{ id: number; name: string }>>("/search/keyword", { query: term }, 60 * 60 * 24 * 7);
-  const want = term.toLowerCase();
-  // Exact tag first, then close variants ("gold mine", "gold mining town").
-  const ids = found.results
-    .sort((a, b) => Number(b.name.toLowerCase() === want) - Number(a.name.toLowerCase() === want))
-    .slice(0, 4)
-    .map((k) => k.id);
-  if (!ids.length) return [];
-  const { items } = await discoverTmdb(kind, { with_keywords: ids.join("|"), sort_by: "vote_count.desc", "vote_count.gte": "15" }, 1);
-  return items.filter((i) => i.artworkUrl);
-}

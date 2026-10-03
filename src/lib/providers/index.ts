@@ -112,7 +112,7 @@ export const providerStatus = () => ({
 });
 
 /** Books: Hardcover when configured, Open Library as the fallback. */
-export async function searchBooks(query: string) {
+async function searchBooks(query: string) {
   if (hardcover.isHardcoverConfigured()) {
     try {
       return await hardcover.searchBooks(query);
