@@ -17,8 +17,9 @@ export default function Template({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     if (Date.now() - poppedAt < 1500) return;
     window.scrollTo(0, 0);
-    // Streaming content (e.g. a detail page replacing its skeleton) can nudge the position after the first
-    // paint, especially on iOS. For a moment, hold the top — unless the person starts scrolling themselves.
+    // Two things can push a fresh screen down after we reset it: streamed content settling, and on iOS the
+    // leftover momentum of a flick on the previous screen (tapping mid-glide carries the glide over).
+    // For a moment, hold the top against both — unless the person starts scrolling on this screen.
     let touched = false;
     const stop = () => (touched = true);
     const hold = () => {
@@ -28,14 +29,19 @@ export default function Template({ children }: { children: React.ReactNode }) {
     observer.observe(document.body);
     const frame = requestAnimationFrame(hold);
     const opts = { passive: true, once: true } as const;
+    window.addEventListener("scroll", hold, { passive: true });
     window.addEventListener("touchstart", stop, opts);
     window.addEventListener("wheel", stop, opts);
     window.addEventListener("keydown", stop, opts);
-    const done = setTimeout(() => observer.disconnect(), 1200);
+    const release = () => {
+      observer.disconnect();
+      window.removeEventListener("scroll", hold);
+    };
+    const done = setTimeout(release, 1500);
     return () => {
       cancelAnimationFrame(frame);
       clearTimeout(done);
-      observer.disconnect();
+      release();
       window.removeEventListener("touchstart", stop);
       window.removeEventListener("wheel", stop);
       window.removeEventListener("keydown", stop);
