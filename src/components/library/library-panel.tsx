@@ -106,7 +106,7 @@ export function LibraryPanel({ media, review, reviewedAt }: LibraryPanelProps) {
         <button
           type="button"
           onClick={() => setStatusOpen(true)}
-          className="glass mt-2 inline-flex h-11 items-center gap-2 rounded-full pr-3.5 pl-4 text-[15px] font-semibold transition-transform active:scale-95"
+          className="glass mt-2 inline-flex h-11 items-center gap-2 rounded-full pr-3.5 pl-4 text-[15px] font-semibold transition-transform active:scale-[0.98] max-md:flex max-md:h-[52px] max-md:w-full max-md:justify-center max-md:text-[16px]"
         >
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.span key={status} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
