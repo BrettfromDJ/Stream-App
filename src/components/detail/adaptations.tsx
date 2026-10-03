@@ -10,7 +10,7 @@ export function Adaptations({ data }: { data: NonNullable<MediaDetail["adaptatio
   const source = data.kind === "source";
   return (
     <section aria-labelledby="adaptations">
-      <h2 id="adaptations" className="mb-3 flex items-center gap-2 text-[18px] font-bold tracking-[-0.02em]">
+      <h2 id="adaptations" className="mb-3 flex items-center gap-2 display text-[24px] md:text-[26px]">
         {source ? <BookOpen className="size-[18px] text-fg-2" /> : <Clapperboard className="size-[18px] text-fg-2" />}
         {source ? "Based on the Book" : "On Screen"}
       </h2>

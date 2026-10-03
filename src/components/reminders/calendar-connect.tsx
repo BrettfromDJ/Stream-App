@@ -47,7 +47,7 @@ export function CalendarConnect({ available }: { available: boolean }) {
           <CalendarPlus className="size-[22px]" strokeWidth={2.2} />
         </span>
         <div className="min-w-0">
-          <h2 className="text-[18px] font-bold tracking-[-0.02em]">Get reminders on your phone</h2>
+          <h2 className="display text-[24px] md:text-[26px]">Get reminders on your phone</h2>
           <p className="mt-1 text-[14px] leading-relaxed text-fg-2">
             Add these to your calendar and you&apos;ll get an alert at 9am on release day and when new episodes drop. It stays up to date on its own.
           </p>

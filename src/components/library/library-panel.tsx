@@ -122,7 +122,7 @@ export function LibraryPanel({ media, review, reviewedAt }: LibraryPanelProps) {
         <div className="mt-2 flex items-center gap-4">
           <StarRating value={rating} onChange={rate} disabled={!canRate(status)} size={34} />
           {rating ? (
-            <span className="text-[28px] font-bold tracking-[-0.03em] tabular-nums">{formatRating(rating)}</span>
+            <span className="text-[28px] font-display font-bold tracking-[-0.04em] tabular-nums">{formatRating(rating)}</span>
           ) : null}
         </div>
         <p className="mt-1.5 text-[13px] text-fg-3">

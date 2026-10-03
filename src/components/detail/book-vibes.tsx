@@ -9,7 +9,7 @@ export function BookVibes({ moods, warnings }: { moods: string[]; warnings: stri
   if (!moods.length && !warnings.length) return null;
   return (
     <section aria-labelledby="vibes">
-      <h2 id="vibes" className="mb-3 text-[18px] font-bold tracking-[-0.02em]">
+      <h2 id="vibes" className="mb-3 display text-[24px] md:text-[26px]">
         The Vibe
       </h2>
       {moods.length > 0 && (

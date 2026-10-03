@@ -24,7 +24,7 @@ export function ReviewsSection({ data }: { data: CommunityReviews }) {
     <section aria-labelledby="reviews">
       <div className="flex items-baseline justify-between gap-3">
         <div>
-          <h2 id="reviews" className="text-[18px] font-bold tracking-[-0.02em]">
+          <h2 id="reviews" className="display text-[24px] md:text-[26px]">
             Reviews
           </h2>
           <p className="text-[12.5px] text-fg-3">
@@ -83,7 +83,7 @@ function Overall({
       <div className="shrink-0 text-center">
         <p
           className={cn(
-            "text-[34px] leading-none font-bold tracking-[-0.03em] tabular-nums",
+            "text-[34px] leading-none font-display font-bold tracking-[-0.04em] tabular-nums",
             v.tone,
           )}
         >

@@ -27,7 +27,7 @@ export async function AuthorPage({ id }: { id: string }) {
     return (
       <div className="gutter pt-[calc(var(--nav-h)+1rem)]">
         <BackButton />
-        <p className="py-20 text-[20px] font-bold tracking-[-0.02em] md:text-center">This author isn&apos;t available right now.</p>
+        <p className="py-20 text-[20px] font-display font-bold tracking-[-0.04em] md:text-center">This author isn&apos;t available right now.</p>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export async function AuthorPage({ id }: { id: string }) {
           </div>
           <div className="min-w-0">
             <p className="text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">Author</p>
-            <h1 className="mt-1 text-[34px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[48px]">{author.name}</h1>
+            <h1 className="display mt-1 text-[44px] text-balance md:text-[64px]">{author.name}</h1>
             <p className="mt-2 text-[14px] text-fg-2 md:text-[15px]">
               {[
                 author.lifespan,
@@ -99,7 +99,7 @@ export async function AuthorPage({ id }: { id: string }) {
 
         {author.all.length > author.popular.length && (
           <section aria-label="All books">
-            <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">All Books</h2>
+            <h2 className="gutter mb-3 display text-[26px] md:text-[32px]">All Books</h2>
             <MediaGrid>
               {author.all.map((b) => (
                 <MediaCard key={b.externalId} media={cardFromResult(b, index)} sizes={GRID_SIZES} showRating={false} showInLibrary />

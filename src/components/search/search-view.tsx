@@ -107,7 +107,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
   return (
     <div>
       <div className="sticky top-0 z-30 bg-bg/80 pt-[calc(var(--nav-h)+1.25rem)] pb-3 backdrop-blur-xl backdrop-saturate-150 lg:pt-[calc(var(--nav-h)+1.5rem)]">
-        <h1 className="gutter text-[32px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[38px]">Search</h1>
+        <h1 className="gutter display text-[46px] md:text-[60px]">Search</h1>
         <div className="gutter mt-4">
           <label className="glass flex h-12 items-center gap-2.5 rounded-2xl px-4 md:max-w-xl">
             {loading ? (
@@ -212,7 +212,7 @@ export function SearchView({ initialQuery, initialType, initialResults, libraryI
 function Message({ title, body }: { title: string; body: string }) {
   return (
     <div className="gutter py-14 md:py-20 md:text-center">
-      <p className="text-[20px] font-bold tracking-[-0.02em]">{title}</p>
+      <p className="display text-[26px] md:text-[30px]">{title}</p>
       <p className="mt-1.5 text-[15px] text-fg-2">{body}</p>
     </div>
   );

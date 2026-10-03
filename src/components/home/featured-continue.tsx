@@ -45,7 +45,7 @@ export function FeaturedContinue({ item }: { item: LibraryItem }) {
           <div className="absolute inset-0 bg-gradient-to-r from-black/50 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 p-5 md:p-7">
             <p className="text-[12px] font-bold tracking-[0.12em] text-fg-2 uppercase">Pick up where you left off</p>
-            <h2 className="mt-1 max-w-[80%] text-[28px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[40px]">{item.title}</h2>
+            <h2 className="display mt-1.5 max-w-[80%] text-[36px] text-balance md:text-[54px]">{item.title}</h2>
             <p className="mt-1.5 text-[14px] text-fg-2 md:text-[15px]">
               {[statusLabel(item.status, item.mediaType), detail].filter(Boolean).join(" · ")}
             </p>
@@ -58,7 +58,7 @@ export function FeaturedContinue({ item }: { item: LibraryItem }) {
                   <span className="h-1 flex-1 overflow-hidden rounded-full bg-white/20">
                     <span className="block h-full rounded-full bg-fg" style={{ width: `${Math.min(100, percent)}%` }} />
                   </span>
-                  <span className="text-[12.5px] font-semibold text-fg-2 tabular-nums">{Math.round(percent)}%</span>
+                  <span className="display text-[26px] leading-none tabular-nums">{Math.round(percent)}<span className="text-[0.55em] align-super text-fg/55">%</span></span>
                 </span>
               )}
             </div>

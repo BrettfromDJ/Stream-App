@@ -14,7 +14,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       </div>
       <div className="relative w-full max-w-[380px] animate-fade-in">
         <Logo className="size-12" />
-        <h1 className="mt-6 text-[34px] leading-[1.05] font-bold tracking-[-0.035em]">Shelf</h1>
+        <h1 className="mt-6 text-[34px] leading-[1.05] font-display font-bold tracking-[-0.04em]">Shelf</h1>
         <p className="mt-2 text-[16px] text-fg-2">Everything you&apos;re watching, reading and playing.</p>
         {isSupabaseConfigured ? (
           <LoginForm next={next ?? "/"} linkError={error === "link"} />

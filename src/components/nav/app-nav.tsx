@@ -73,7 +73,7 @@ function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
         <Link href="/" aria-label="Home" className="shrink-0">
           <Logo className="size-7" />
         </Link>
-        <nav aria-label="Browse" className="no-scrollbar flex min-w-0 gap-1.5 overflow-x-auto">
+        <nav aria-label="Browse" className="no-scrollbar flex min-w-0 gap-2.5 overflow-x-auto">
           {BROWSE_TABS.map(({ href, label }) => {
             const active = isActive(pathname, href);
             return (
@@ -82,8 +82,8 @@ function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "shrink-0 rounded-full border px-3.5 py-1.5 text-[13.5px] font-semibold whitespace-nowrap transition-colors",
-                  active ? "border-transparent bg-fg text-black" : "border-white/25 text-fg active:bg-white/10",
+                  "display shrink-0 px-1.5 py-1 text-[19px] whitespace-nowrap transition-colors",
+                  active ? "text-fg" : "text-fg/40 active:text-fg/70",
                 )}
               >
                 {label}
@@ -100,7 +100,7 @@ function TopNav({ mobileVisible }: { mobileVisible: boolean }) {
       <div className="gutter hidden h-16 items-center gap-10 lg:flex">
         <Link href="/" className="flex shrink-0 items-center gap-2.5">
           <Logo />
-          <span className="text-[19px] font-bold tracking-[-0.03em]">Shelf</span>
+          <span className="text-[19px] font-display font-bold tracking-[-0.04em]">Shelf</span>
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-7">
           {DESKTOP_LINKS.map(({ href, label }) => {

@@ -10,7 +10,7 @@ export function TimeToBeat({ data }: { data: NonNullable<MediaDetail["timeToBeat
   return (
     <section aria-labelledby="ttb">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="ttb" className="text-[18px] font-bold tracking-[-0.02em]">
+        <h2 id="ttb" className="display text-[24px] md:text-[26px]">
           Time to Beat
         </h2>
         {data.submissions ? (
@@ -23,7 +23,7 @@ export function TimeToBeat({ data }: { data: NonNullable<MediaDetail["timeToBeat
         {data.entries.map((e) => (
           <div key={e.label} className="rounded-2xl bg-white/[0.04] px-3.5 py-3.5 md:px-4">
             <p className="flex items-baseline gap-1">
-              <span className="text-[26px] leading-none font-bold tracking-[-0.03em] tabular-nums md:text-[30px]">
+              <span className="text-[26px] leading-none font-display font-bold tracking-[-0.04em] tabular-nums md:text-[30px]">
                 {formatHours(e.hours)}
               </span>
               <span className="text-[13px] font-semibold text-fg-2">hrs</span>
@@ -42,7 +42,7 @@ export function TimeToBeat({ data }: { data: NonNullable<MediaDetail["timeToBeat
 export function WhereToBuy({ stores }: { stores: NonNullable<MediaDetail["stores"]> }) {
   return (
     <section aria-labelledby="buy">
-      <h2 id="buy" className="mb-3 text-[18px] font-bold tracking-[-0.02em]">
+      <h2 id="buy" className="mb-3 display text-[24px] md:text-[26px]">
         Where to Buy
       </h2>
       <ul className="overflow-hidden rounded-2xl bg-white/[0.04]">
@@ -84,7 +84,7 @@ export function SteamReviewsSection({ data }: { data: SteamReviews }) {
   return (
     <section aria-labelledby="steam-reviews">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="steam-reviews" className="text-[18px] font-bold tracking-[-0.02em]">
+        <h2 id="steam-reviews" className="display text-[24px] md:text-[26px]">
           Steam Reviews
         </h2>
         <a href={data.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[13px] font-medium text-fg-2 hover:text-fg">
@@ -94,7 +94,7 @@ export function SteamReviewsSection({ data }: { data: SteamReviews }) {
 
       <div className="mt-3 flex items-center gap-4 rounded-2xl bg-white/[0.04] p-4">
         {data.percent != null && (
-          <div className={cn("text-[34px] leading-none font-bold tracking-[-0.03em] tabular-nums", SCORE_TONE(data.percent))}>
+          <div className={cn("text-[34px] leading-none font-display font-bold tracking-[-0.04em] tabular-nums", SCORE_TONE(data.percent))}>
             {data.percent}%
           </div>
         )}
@@ -155,7 +155,7 @@ const MODE_ICON: { match: RegExp; icon: typeof User }[] = [
 export function HowToPlay({ modes }: { modes: NonNullable<MediaDetail["playModes"]> }) {
   return (
     <section aria-labelledby="how-to-play">
-      <h2 id="how-to-play" className="mb-3 text-[18px] font-bold tracking-[-0.02em]">
+      <h2 id="how-to-play" className="mb-3 display text-[24px] md:text-[26px]">
         How to Play
       </h2>
       <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">

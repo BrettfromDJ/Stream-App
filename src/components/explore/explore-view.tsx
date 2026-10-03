@@ -120,7 +120,7 @@ export function ExploreView({ query, initial, libraryIndex, hasServices }: Props
         <p className="mt-6 text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">
           Explore {TYPE_LABEL_PLURAL[query.type]}
         </p>
-        <h1 className="mt-1 text-[32px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[44px]">{title}</h1>
+        <h1 className="display mt-1 pb-1 text-[46px] text-balance md:text-[64px]">{title}</h1>
         {blurb && <p className="mt-2 text-[15px] text-fg-2">{blurb}</p>}
 
         {(query.type === "movie" || query.type === "tv") && (
@@ -212,7 +212,7 @@ export function ExploreView({ query, initial, libraryIndex, hasServices }: Props
           </MediaGrid>
         ) : (
           <div className="gutter py-16 md:text-center">
-            <p className="text-[20px] font-bold tracking-[-0.02em]">Nothing matches these filters.</p>
+            <p className="display text-[26px] md:text-[30px]">Nothing matches these filters.</p>
             <p className="mt-1.5 text-[15px] text-fg-2">Try widening the year or rating.</p>
             {activeCount > 0 && (
               <button

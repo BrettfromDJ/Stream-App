@@ -38,7 +38,7 @@ export async function PersonPage({ id }: { id: string }) {
     return (
       <div className="gutter pt-[calc(var(--nav-h)+1rem)]">
         <BackButton />
-        <p className="py-20 text-[20px] font-bold tracking-[-0.02em] md:text-center">This page isn&apos;t available right now.</p>
+        <p className="py-20 text-[20px] font-display font-bold tracking-[-0.04em] md:text-center">This page isn&apos;t available right now.</p>
       </div>
     );
   }
@@ -68,7 +68,7 @@ export async function PersonPage({ id }: { id: string }) {
           </div>
           <div className="min-w-0">
             {role && <p className="text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">{role}</p>}
-            <h1 className="mt-1 text-[34px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[48px]">{person.name}</h1>
+            <h1 className="display mt-1 text-[44px] text-balance md:text-[64px]">{person.name}</h1>
             <p className="mt-2 text-[14px] text-fg-2 md:text-[15px]">
               {[person.lifespan, person.birthplace, `${person.credits} title${person.credits === 1 ? "" : "s"}`, inLibrary ? `${inLibrary} in your library` : null]
                 .filter(Boolean)

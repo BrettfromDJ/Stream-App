@@ -24,7 +24,7 @@ export async function GridBlock({
     <section aria-label={title} className="cv-auto gutter">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">{title}</h2>
+          <h2 className="display text-[26px] md:text-[32px]">{title}</h2>
           {subtitle && <p className="mt-0.5 text-[13.5px] text-fg-2">{subtitle}</p>}
         </div>
         {href && (

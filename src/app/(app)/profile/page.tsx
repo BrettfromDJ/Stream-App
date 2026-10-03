@@ -37,7 +37,7 @@ export default async function ProfilePage() {
       <div className="gutter mt-8 grid grid-cols-4 gap-2 md:max-w-2xl">
         {MEDIA_TYPES.map((t) => (
           <Link key={t} href={`/library?type=${t}`} className="rounded-2xl bg-white/[0.04] px-3 py-3.5 transition-colors hover:bg-white/[0.07]">
-            <p className="text-[22px] font-bold tracking-[-0.03em] tabular-nums">{counts[t]}</p>
+            <p className="text-[22px] font-display font-bold tracking-[-0.04em] tabular-nums">{counts[t]}</p>
             <p className="text-[12px] text-fg-2">{TYPE_NOUN_PLURAL[t]}</p>
           </Link>
         ))}

@@ -1,6 +1,7 @@
 "use client";
 
-import { BookOpen, Clapperboard, Gamepad2, LayoutGrid, Search, Tv, X } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { Sup } from "@/components/editorial/editorial";
 import { motion } from "motion/react";
 import { useRef } from "react";
 import type { MediaType } from "@/lib/media/types";
@@ -8,12 +9,12 @@ import { cn } from "@/lib/utils";
 
 export type TypeFilter = MediaType | "all";
 
-const OPTIONS: { value: TypeFilter; label: string; icon: typeof LayoutGrid }[] = [
-  { value: "all", label: "All", icon: LayoutGrid },
-  { value: "movie", label: "Movies", icon: Clapperboard },
-  { value: "tv", label: "TV", icon: Tv },
-  { value: "book", label: "Books", icon: BookOpen },
-  { value: "game", label: "Games", icon: Gamepad2 },
+const OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "movie", label: "Movies" },
+  { value: "tv", label: "TV" },
+  { value: "book", label: "Books" },
+  { value: "game", label: "Games" },
 ];
 
 interface Props {
@@ -26,16 +27,16 @@ interface Props {
   onSearching: (open: boolean) => void;
 }
 
-/** One glass bar: media type with a sliding highlight, and a find-in-library search that expands in place. */
+/** Editorial tabs (All ²³ Movies ⁷) with a sliding underline, and a find-in-library search that expands in place. */
 export function MediumSwitcher({ value, counts, onChange, query, onQuery, searching, onSearching }: Props) {
   const input = useRef<HTMLInputElement>(null);
 
   return (
     <div className="sticky top-[var(--nav-h)] z-30 pt-2.5 pb-4">
       {/* Fades content scrolling underneath so the glass bar stays legible. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-to-b from-bg via-bg/85 to-transparent" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[calc(-1*var(--nav-h))] -bottom-4 bg-[linear-gradient(to_bottom,var(--color-bg)_80%,transparent)]" />
       <div className="gutter relative">
-        <div className="glass relative flex h-12 items-center rounded-full p-1">
+        <div className={cn("relative flex h-12 items-center", searching && "glass rounded-full p-1")}>
           {searching ? (
             <motion.div
               key="search"
@@ -67,8 +68,8 @@ export function MediumSwitcher({ value, counts, onChange, query, onQuery, search
             </motion.div>
           ) : (
             <>
-              <div role="tablist" aria-label="Media type" className="no-scrollbar flex h-full min-w-0 flex-1 overflow-x-auto">
-                {OPTIONS.map(({ value: v, label, icon: Icon }) => {
+              <div role="tablist" aria-label="Media type" className="no-scrollbar flex h-full min-w-0 flex-1 items-center gap-3.5 overflow-x-auto pr-2 pl-1 [mask-image:linear-gradient(to_right,black_88%,transparent)] md:gap-6 md:[mask-image:none]">
+                {OPTIONS.map(({ value: v, label }) => {
                   const active = v === value;
                   return (
                     <button
@@ -77,23 +78,18 @@ export function MediumSwitcher({ value, counts, onChange, query, onQuery, search
                       aria-selected={active}
                       onClick={() => onChange(v)}
                       className={cn(
-                        "relative flex h-full shrink-0 items-center gap-1.5 rounded-full px-3 text-[13.5px] font-semibold whitespace-nowrap transition-colors md:px-4",
-                        active ? "text-black" : "text-fg-2 hover:text-fg",
+                        "display relative shrink-0 py-1 text-[21px] whitespace-nowrap transition-colors md:text-[26px]",
+                        active ? "text-fg" : "text-fg/35 hover:text-fg/70",
                       )}
                     >
+                      {label}
+                      {counts[v] > 0 && <Sup>{counts[v]}</Sup>}
                       {active && (
                         <motion.span
                           layoutId="library-medium"
-                          className="absolute inset-0 rounded-full bg-fg shadow-[0_4px_18px_-4px_rgba(255,255,255,0.35)]"
+                          className="absolute inset-x-0 -bottom-0.5 h-[3px] rounded-full bg-fg"
                           transition={{ type: "spring", bounce: 0.2, duration: 0.45 }}
                         />
-                      )}
-                      <Icon aria-hidden className="relative size-4" strokeWidth={2.25} />
-                      <span className={cn("relative", v !== "all" && !active && "max-[420px]:sr-only")}>{label}</span>
-                      {counts[v] > 0 && (
-                        <span className={cn("relative text-[11.5px] tabular-nums", active ? "text-black/55" : "text-fg-3", "max-[420px]:hidden")}>
-                          {counts[v]}
-                        </span>
                       )}
                     </button>
                   );
@@ -103,7 +99,7 @@ export function MediumSwitcher({ value, counts, onChange, query, onQuery, search
                 type="button"
                 aria-label="Find in your library"
                 onClick={() => onSearching(true)}
-                className="grid size-10 shrink-0 place-items-center rounded-full text-fg-2 transition-colors hover:bg-white/10 hover:text-fg"
+                className="grid size-10 shrink-0 place-items-center rounded-full bg-white/[0.08] text-fg-2 transition-colors hover:bg-white/15 hover:text-fg"
               >
                 <Search className="size-[18px]" />
               </button>

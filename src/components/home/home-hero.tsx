@@ -1,48 +1,38 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { discovery } from "@/lib/providers";
-import type { MediaSearchResult } from "@/lib/media/types";
+import { BigStat, Headline, Mesh, MESHES } from "@/components/editorial/editorial";
 import { Greeting, TodayLabel } from "./greeting";
-import { PosterWall } from "./poster-wall";
 
-function interleave(lists: MediaSearchResult[][], take: number) {
-  const out: MediaSearchResult[] = [];
-  for (let i = 0; out.length < take && lists.some((l) => l[i]); i++) {
-    for (const l of lists) if (l[i]?.artworkUrl && out.length < take) out.push(l[i]);
-  }
-  return out;
+export interface HomeStats {
+  total: number;
+  inProgress: number;
+  finishedThisYear: number;
 }
 
-/** Artwork-first welcome: drifting poster wall, greeting, a status line and a big search bar. */
-export async function HomeHero({ status }: { status: string }) {
-  const [movies, shows, games, books] = await Promise.all([
-    discovery.trendingMovies(),
-    discovery.popularShows(),
-    discovery.newGames(),
-    discovery.popularBooks(),
-  ]);
-  const pool = interleave([movies, shows, games, books], 36);
-  const rows = pool.length >= 12 ? [pool.slice(0, 12), pool.slice(12, 24), pool.slice(24, 36)].filter((r) => r.length >= 6) : [];
-
-  return <HeroFrame status={status} wall={rows.length ? <PosterWall rows={rows} /> : null} />;
-}
-
-/** Same layout without artwork (loading state / providers down). */
-export function HeroFrame({ status, wall }: { status: string; wall?: React.ReactNode }) {
+/** Editorial welcome: a soft color field, a two-tone greeting, your numbers, and search. */
+export function HomeHero({ status, stats }: { status: string; stats: HomeStats }) {
   return (
-    <section className="relative isolate overflow-hidden">
-      {wall}
-      <div className="gutter relative flex min-h-[400px] flex-col justify-end pt-[calc(var(--nav-h)+2.5rem)] pb-8 md:min-h-[460px] md:pb-10">
-        <p className="text-[13px] font-semibold tracking-[0.1em] text-fg-2 uppercase">
+    <section className="relative isolate">
+      <Mesh colors={MESHES.home} intensity={0.6} />
+      <div className="gutter relative pt-[calc(var(--nav-h)+2.25rem)] pb-8 md:pt-[calc(var(--nav-h)+3.5rem)] md:pb-12">
+        <p className="text-[12px] font-semibold tracking-[0.14em] text-fg/60 uppercase">
           <TodayLabel />
         </p>
-        <h1 className="mt-1.5 text-[40px] leading-[1.02] font-bold tracking-[-0.035em] md:text-[56px]">
-          <Greeting />
-        </h1>
-        <p className="mt-2 max-w-md text-[16px] leading-snug text-fg-2 md:text-[18px]">{status}</p>
+        <Headline
+          strong={<Greeting />}
+          soft={status}
+          className="mt-3 max-w-[13ch] text-[46px] md:max-w-[16ch] md:text-[76px] lg:text-[104px]"
+        />
+        {stats.total > 0 && (
+          <div className="mt-8 flex gap-8 md:gap-12">
+            <BigStat value={stats.inProgress} label="In progress" />
+            <BigStat value={stats.finishedThisYear} label={`Done in ${new Date().getFullYear()}`} />
+            <BigStat value={stats.total} label="On your shelf" className="max-[380px]:hidden" />
+          </div>
+        )}
         <Link
           href="/search"
-          className="glass mt-6 flex h-14 w-full max-w-xl items-center gap-3 rounded-[20px] px-5 text-[16px] text-fg-2 transition-transform active:scale-[0.99]"
+          className="glass mt-8 flex h-14 w-full max-w-xl items-center gap-3 rounded-full px-5 text-[16px] text-fg-2 transition-transform active:scale-[0.99]"
         >
           <Search className="size-5 shrink-0 text-fg" strokeWidth={2.2} />
           <span className="truncate">

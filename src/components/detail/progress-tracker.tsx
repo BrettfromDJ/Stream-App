@@ -120,7 +120,7 @@ export function ProgressTracker({ media, progress: saved, totalPages: providerPa
   return (
     <section aria-labelledby="progress">
       <div className="flex items-center justify-between gap-3">
-        <h2 id="progress" className="text-[18px] font-bold tracking-[-0.02em] whitespace-nowrap">
+        <h2 id="progress" className="display text-[24px] md:text-[26px] whitespace-nowrap">
           {isBook ? "Reading Progress" : "Play Time"}
         </h2>
         {isBook && (

@@ -21,13 +21,13 @@ export default async function ReviewsPage() {
     <div className="animate-fade-in">
       <div className="gutter pt-[calc(var(--nav-h)+0.75rem)] lg:pt-[calc(var(--nav-h)+1.5rem)]">
         <BackButton />
-        <h1 className="mt-5 text-[32px] leading-[1.1] font-bold tracking-[-0.025em] md:text-[38px]">Reviews</h1>
+        <h1 className="mt-5 display text-[46px] md:text-[60px]">Reviews</h1>
         <p className="mt-1 text-[14px] text-fg-3">Your entertainment journal.</p>
       </div>
 
       {reviews.length === 0 ? (
         <div className="gutter py-16">
-          <p className="text-[20px] font-bold tracking-[-0.02em]">No reviews yet.</p>
+          <p className="display text-[26px] md:text-[30px]">No reviews yet.</p>
           <p className="mt-1.5 text-[15px] text-fg-2">Finish something and write down what you thought.</p>
           <Link href="/library?status=completed" className={buttonClasses("primary", "md", "mt-6")}>
             Your Finished Titles

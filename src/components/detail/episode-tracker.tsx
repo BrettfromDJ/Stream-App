@@ -112,7 +112,7 @@ export function EpisodeTracker({ show, seasons, initialSeason, watched: initialW
   return (
     <section aria-labelledby="episodes">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="episodes" className="text-[18px] font-bold tracking-[-0.02em]">
+        <h2 id="episodes" className="display text-[24px] md:text-[26px]">
           Seasons & Episodes
         </h2>
         <p className="text-[13px] text-fg-2 tabular-nums">

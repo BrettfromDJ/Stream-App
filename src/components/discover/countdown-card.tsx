@@ -101,7 +101,7 @@ export function CountdownCard({ media }: { media: CardData }) {
           <div className="mt-2.5 flex gap-1.5" aria-label="Time until release">
             {(parts ?? [null, null, null, null]).map((p, i) => (
               <div key={i} className="chip-solid min-w-[3.25rem] rounded-[10px] px-2 py-1.5 text-center">
-                <p className="text-[18px] leading-none font-bold tracking-[-0.02em] tabular-nums md:text-[20px]">
+                <p className="text-[18px] leading-none font-display font-bold tracking-[-0.04em] tabular-nums md:text-[20px]">
                   {p ? String(p.value).padStart(i === 0 ? 1 : 2, "0") : "–"}
                 </p>
                 <p className="mt-1 text-[9.5px] font-semibold tracking-[0.08em] text-fg-2 uppercase">

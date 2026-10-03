@@ -17,7 +17,7 @@ export async function HeadsUp({ items }: { items: LibraryItem[] }) {
     <section aria-label="Heads up" className="cv-auto">
       <div className="gutter mb-3">
         <Link href="/reminders" className="group/title -my-1 inline-flex items-center gap-0.5 py-1">
-          <h2 className="text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">Heads Up</h2>
+          <h2 className="display text-[26px] md:text-[32px]">Heads Up</h2>
           <ChevronRight aria-hidden className="size-5 text-fg-3 transition-transform group-hover/title:translate-x-0.5" strokeWidth={2.5} />
         </Link>
       </div>

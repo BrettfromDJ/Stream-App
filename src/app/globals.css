@@ -15,8 +15,21 @@
   --color-danger: #ff6b6b;
   --color-success: #5ee0a0;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Inter", "Segoe UI", Roboto,
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --font-display: var(--font-inter-tight), var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Display",
     "Helvetica Neue", Arial, sans-serif;
+
+  /* Editorial palette: bright, flat blocks of color (as in poster/print design). */
+  --color-coral: #ff5b3d;
+  --color-sun: #ffd84a;
+  --color-lilac: #b9b3ff;
+  --color-mint: #a9e8c4;
+  --color-violet: #a873ff;
+  --color-blush: #ffaee9;
+  --color-lime: #e4f78a;
+  --color-sky: #8fc7ff;
+  --color-ink: #0b0b0c;
 
   --radius-card: 14px;
   --radius-sheet: 28px;
@@ -29,6 +42,12 @@
 
   --animate-marquee: marquee 120s linear infinite;
   --animate-glow-spin: glow-spin 6s linear infinite;
+  --animate-mesh-drift: mesh-drift 18s ease-in-out infinite alternate;
+
+  @keyframes mesh-drift {
+    from { transform: translate3d(-3%, -2%, 0) scale(1); }
+    to { transform: translate3d(3%, 2%, 0) scale(1.08); }
+  }
 
   @keyframes glow-spin {
     to { transform: rotate(360deg); }
@@ -208,4 +227,25 @@
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------------------------------------------------------- editorial */
+
+/* Big, tight Swiss-style headlines and numerals. */
+@utility display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 0.95;
+}
+
+/*
+ * Soft color fields made of layered radial gradients (no blur filter — iOS Safari renders
+ * blurred layers as hard boxes). Colors come from --m1/--m2/--m3 set inline.
+ */
+@utility mesh {
+  background:
+    radial-gradient(60% 55% at 12% 18%, var(--m1, #ff5b3d) 0%, transparent 70%),
+    radial-gradient(55% 60% at 88% 12%, var(--m2, #8fc7ff) 0%, transparent 72%),
+    radial-gradient(70% 60% at 60% 85%, var(--m3, #a873ff) 0%, transparent 70%);
 }

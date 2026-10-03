@@ -172,7 +172,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
           )}
           <div className="min-w-0 max-md:w-full md:pb-2">
             <p className="text-[12px] font-semibold tracking-[0.1em] text-fg-3 uppercase">{TYPE_LABEL[type]}</p>
-            <h1 className="mt-1 text-[30px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[44px] lg:text-[52px]">
+            <h1 className="display mt-1 text-[38px] text-balance md:text-[56px] lg:text-[68px]">
               {detail.title}
             </h1>
             {detail.creators?.length ? (
@@ -260,7 +260,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
           {detail.facts.length > 0 && (
             <section>
-              <h2 className="mb-3 text-[18px] font-bold tracking-[-0.02em]">Details</h2>
+              <h2 className="mb-3 display text-[24px] md:text-[26px]">Details</h2>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
                 {detail.facts.map((f) => (
                   <div key={f.label} className="min-w-0">
@@ -291,7 +291,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
       <div className="mt-12 flex flex-col gap-10 md:gap-12">
         {detail.cast && detail.cast.length > 0 && (
           <section aria-label="Cast">
-            <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Cast</h2>
+            <h2 className="gutter mb-3 display text-[26px] md:text-[30px]">Cast</h2>
             <div className="no-scrollbar gutter flex gap-4 overflow-x-auto pb-1">
               {detail.cast.map((p) => (
                 <PersonLink key={`${p.name}-${p.role}`} href={p.href} className="group w-[84px] shrink-0 text-center md:w-[96px]">
@@ -314,7 +314,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
 
         {detail.screenshots && detail.screenshots.length > 0 && (
           <section aria-label="Screenshots">
-            <h2 className="gutter mb-3 text-[20px] font-bold tracking-[-0.02em]">Screenshots</h2>
+            <h2 className="gutter mb-3 display text-[26px] md:text-[30px]">Screenshots</h2>
             <div className="no-scrollbar gutter snap-gutter flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1">
               {detail.screenshots.map((src, i) => (
                 <div key={src} className="relative aspect-video w-[78vw] shrink-0 snap-start overflow-hidden rounded-[14px] bg-elevated-2 md:w-[420px]">
@@ -366,7 +366,7 @@ function Unavailable({ type, id }: { type: MediaType; id: string }) {
     <div className="gutter pt-[calc(var(--nav-h)+1rem)]">
       <BackButton />
       <div className="py-20 md:text-center">
-        <p className="text-[22px] font-bold tracking-[-0.02em]">This title isn&apos;t available right now.</p>
+        <p className="text-[22px] font-display font-bold tracking-[-0.04em]">This title isn&apos;t available right now.</p>
         <p className="mt-1.5 text-[15px] text-fg-2">
           {sourceOf(type, id)} didn&apos;t respond. Try again in a moment.
         </p>

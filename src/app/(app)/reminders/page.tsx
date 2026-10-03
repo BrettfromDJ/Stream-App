@@ -49,13 +49,13 @@ async function Lists({ items }: { items: Awaited<ReturnType<typeof getLibrary>>[
     <>
       {recent.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em]">Out Now</h2>
+          <h2 className="mb-3 display text-[26px] md:text-[30px]">Out Now</h2>
           <ReminderList reminders={recent} past />
         </section>
       )}
       {upcoming.length > 0 && (
         <section>
-          <h2 className="mb-3 text-[20px] font-bold tracking-[-0.02em]">Coming Up</h2>
+          <h2 className="mb-3 display text-[26px] md:text-[30px]">Coming Up</h2>
           <ReminderList reminders={upcoming} />
         </section>
       )}

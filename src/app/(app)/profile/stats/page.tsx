@@ -88,7 +88,7 @@ export default async function StatsPage({ searchParams }: { searchParams: Promis
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div>
-      <p className="text-[28px] leading-none font-bold tracking-[-0.03em] tabular-nums">{value}</p>
+      <p className="text-[28px] leading-none font-display font-bold tracking-[-0.04em] tabular-nums">{value}</p>
       <p className="mt-1.5 text-[14px] text-fg-2">{label}</p>
     </div>
   );

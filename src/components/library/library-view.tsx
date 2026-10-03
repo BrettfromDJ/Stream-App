@@ -59,9 +59,9 @@ function statsOf(items: LibraryItem[]): LibraryStat[] {
   const stats: LibraryStat[] = [
     { label: "Titles", value: items.length },
     { label: `Done in ${year}`, value: items.filter((i) => i.dateFinished?.startsWith(String(year))).length },
-    { label: "In Progress", value: items.filter((i) => i.status === "in_progress").length },
+    { label: "In progress", value: items.filter((i) => i.status === "in_progress").length },
   ];
-  if (rated.length) stats.push({ label: "Avg Rating", value: rated.reduce((n, i) => n + (i.rating ?? 0), 0) / rated.length, digits: 1, prefix: "★ " });
+  if (rated.length) stats.push({ label: "Avg rating", value: rated.reduce((n, i) => n + (i.rating ?? 0), 0) / rated.length, digits: 1, prefix: "★ " });
   return stats;
 }
 
@@ -285,7 +285,7 @@ function Section({
             <Icon className="size-[18px]" strokeWidth={2.25} />
           </span>
           <div className="min-w-0">
-            <h2 className="truncate text-[20px] leading-tight font-bold tracking-[-0.02em] md:text-[22px]">
+            <h2 className="truncate text-[20px] leading-tight font-display font-bold tracking-[-0.04em] md:text-[22px]">
               {title}
               {count != null && <span className="ml-2 text-[15px] font-semibold text-fg-3 tabular-nums">{count}</span>}
             </h2>
@@ -363,7 +363,7 @@ function FocusView({
               <ChevronLeft className="size-5" />
             </button>
           )}
-          <h2 className="truncate text-[22px] font-bold tracking-[-0.02em] md:text-[26px]">
+          <h2 className="truncate text-[22px] font-display font-bold tracking-[-0.04em] md:text-[26px]">
             {title} <span className="text-[16px] font-semibold text-fg-3 tabular-nums">{items.length}</span>
           </h2>
         </div>
@@ -424,7 +424,7 @@ function EmptyLibrary() {
   return (
     <div className="gutter mt-6">
       <div className="rounded-[24px] bg-gradient-to-br from-white/[0.08] to-white/[0.02] p-6 ring-1 ring-white/[0.07] md:p-8">
-        <p className="text-[24px] font-bold tracking-[-0.02em]">Your corner is empty — for now.</p>
+        <p className="text-[24px] font-display font-bold tracking-[-0.04em]">Your corner is empty — for now.</p>
         <p className="mt-1.5 max-w-md text-[15px] text-fg-2">
           Everything you watch, read and play lands here: what you&apos;re in the middle of, what&apos;s next, and your all-time favorites.
         </p>

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, Inter_Tight } from "next/font/google";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -18,9 +19,13 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
+// Inter for reading, Inter Tight for the big editorial headlines and numerals.
+const sans = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+const display = Inter_Tight({ subsets: ["latin"], variable: "--font-inter-tight", weight: ["500", "600", "700", "800"], display: "swap" });
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark h-full">
+    <html lang="en" className={`dark h-full ${sans.variable} ${display.variable}`}>
       <body className="min-h-full">
         {children}
         <Toaster />

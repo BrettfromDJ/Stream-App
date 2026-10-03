@@ -41,7 +41,7 @@ export function WhereToWatch({ watch, services }: { watch: WatchAvailability; se
   return (
     <section aria-labelledby="watch">
       <div className="mb-3 flex items-baseline justify-between gap-3">
-        <h2 id="watch" className="text-[18px] font-bold tracking-[-0.02em]">
+        <h2 id="watch" className="display text-[24px] md:text-[26px]">
           Where to Watch
         </h2>
         {watch.link && (

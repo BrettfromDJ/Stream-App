@@ -61,7 +61,7 @@ export function SpotlightCard({
             <p className="inline-flex items-center gap-1.5 text-[12px] font-bold tracking-[0.12em] text-fg-2 uppercase">
               <Sparkles className="size-3.5" strokeWidth={2.5} /> {eyebrow}
             </p>
-            <h2 className="mt-1.5 text-[28px] leading-[1.05] font-bold tracking-[-0.03em] text-balance md:text-[36px]">{card.title}</h2>
+            <h2 className="mt-1.5 text-[34px] leading-[1] font-display font-bold tracking-[-0.04em] text-balance md:text-[44px]">{card.title}</h2>
             {meta.length > 0 && <p className="mt-2 text-[14px] text-fg-2">{meta.join(" · ")}</p>}
             {description && <p className="mt-3 line-clamp-3 text-[15px] leading-relaxed text-fg/80">{description}</p>}
             <div className="mt-5 flex gap-2 max-md:*:flex-1">

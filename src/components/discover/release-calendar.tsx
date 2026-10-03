@@ -58,7 +58,7 @@ export async function ReleaseCalendar({
 
   return (
     <section aria-label={title} className="cv-auto gutter">
-      <h2 className="mb-4 text-[20px] font-bold tracking-[-0.02em] md:text-[22px]">{title}</h2>
+      <h2 className="mb-4 display text-[26px] md:text-[32px]">{title}</h2>
       <div className="flex flex-col gap-6">
         {groups.map((g) => (
           <div key={g.key} className="md:grid md:grid-cols-[140px_minmax(0,1fr)] md:gap-6">

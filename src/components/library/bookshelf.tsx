@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 const SIZES = "(min-width: 1280px) 12vw, (min-width: 1024px) 14vw, (min-width: 768px) 17vw, (min-width: 640px) 21vw, 28vw";
 
 /**
- * Books as a bookcase: 3D covers standing on shelf ledges, row after row.
+ * Books as a bookcase: 3D covers standing on frosted glass shelves, row after row.
  * Each book carries its own stretch of shelf (overlapping into the gap), so rows read as one
  * continuous ledge at any column count.
  */
@@ -55,11 +55,12 @@ export function ShelfBook({ item, priority }: { item: LibraryItem; priority: boo
         ) : null}
       </div>
 
-      {/* The ledge: lit top face, darker front edge, and a shadow cast on the wall below */}
+      {/* The shelf: a frosted glass pane held by two metal pins, casting a soft shadow below */}
       <div aria-hidden className="relative -mx-2.5 md:-mx-4">
-        <div className="h-[7px] bg-gradient-to-b from-[#3a332c] to-[#2a241f] shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] md:h-[9px]" />
-        <div className="h-[6px] bg-gradient-to-b from-[#1d1915] to-[#141110] md:h-[8px]" />
-        <div className="h-4 bg-gradient-to-b from-black/50 to-transparent" />
+        <div className="h-[10px] border-y border-white/25 bg-gradient-to-b from-white/30 via-white/12 to-white/20 shadow-[0_1px_0_rgba(255,255,255,0.08),inset_0_1px_0_rgba(255,255,255,0.35)] md:h-[12px]" />
+        <span className="absolute top-[2px] left-[18%] size-[6px] rounded-full bg-gradient-to-br from-white to-[#8a8a8a] shadow-[0_1px_2px_rgba(0,0,0,0.6)] md:top-[3px]" />
+        <span className="absolute top-[2px] right-[18%] size-[6px] rounded-full bg-gradient-to-br from-white to-[#8a8a8a] shadow-[0_1px_2px_rgba(0,0,0,0.6)] md:top-[3px]" />
+        <div className="h-4 bg-gradient-to-b from-black/45 to-transparent" />
       </div>
 
       <div className="-mt-2 px-0.5">
