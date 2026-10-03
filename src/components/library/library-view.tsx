@@ -14,6 +14,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { ErrorNotice } from "@/components/ui/error-notice";
 import { MediaCard } from "@/components/media/media-card";
 import { GRID_SIZES, MediaGrid } from "@/components/media/grid";
+import { Bookshelf } from "./bookshelf";
 import { cn } from "@/lib/utils";
 
 type TypeFilter = MediaType | "all";
@@ -99,7 +100,9 @@ export function LibraryView({ items, error, initial }: Props) {
 
       {error ? <ErrorNotice className="mt-4" message={error} /> : null}
 
-      {visible.length > 0 ? (
+      {visible.length > 0 && type === "book" ? (
+        <Bookshelf items={visible} />
+      ) : visible.length > 0 ? (
         <MediaGrid className="mt-4">
           {visible.map((item, i) => (
             <MediaCard key={item.id} media={cardFromItem(item)} sizes={GRID_SIZES} priority={i < 6} />

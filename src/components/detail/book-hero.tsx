@@ -41,21 +41,46 @@ export function BookBackdrop({ cover, shelf }: { cover: string | null | undefine
 }
 
 /** The cover drawn as a physical book: spine crease, page edges, and a soft shadow underneath. */
-export function BookCover({ src, title, sizes, className }: { src: string | null | undefined; title: string; sizes: string; className?: string }) {
+export function BookCover({
+  src,
+  title,
+  sizes,
+  className,
+  priority = true,
+  size = "lg",
+}: {
+  src: string | null | undefined;
+  title: string;
+  sizes: string;
+  className?: string;
+  priority?: boolean;
+  /** "sm" for shelf thumbnails: tighter corners and shadow, no floor shadow (the shelf draws its own). */
+  size?: "lg" | "sm";
+}) {
+  const small = size === "sm";
   return (
     <div className={cn("relative aspect-[2/3] shrink-0", className)}>
       {/* Soft contact shadow — a gradient, not a blur filter (iOS Safari renders blurred layers as hard boxes). */}
-      <div
-        aria-hidden
-        className="absolute inset-x-[-10%] -bottom-[9%] h-[18%] bg-[radial-gradient(closest-side,rgba(0,0,0,0.75),transparent)]"
-      />
+      {!small && (
+        <div
+          aria-hidden
+          className="absolute inset-x-[-10%] -bottom-[9%] h-[18%] bg-[radial-gradient(closest-side,rgba(0,0,0,0.75),transparent)]"
+        />
+      )}
       {/* Page edges peeking out on the right. */}
       <div
         aria-hidden
         className="absolute top-[1.5%] -right-[3.5%] bottom-[1.5%] w-[5%] rounded-r-[3px] bg-[repeating-linear-gradient(to_right,#efe9dc_0_1px,#cfc7b6_1px_2px)] shadow-[inset_-2px_0_3px_rgba(0,0,0,0.25)]"
       />
-      <div className="relative size-full overflow-hidden rounded-[3px_10px_10px_3px] shadow-[0_30px_60px_-18px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08)]">
-        <Artwork src={src} title={title} type="book" sizes={sizes} priority />
+      <div
+        className={cn(
+          "relative size-full overflow-hidden",
+          small
+            ? "rounded-[2px_6px_6px_2px] shadow-[0_8px_16px_-8px_rgba(0,0,0,0.9),0_0_0_1px_rgba(255,255,255,0.08)]"
+            : "rounded-[3px_10px_10px_3px] shadow-[0_30px_60px_-18px_rgba(0,0,0,0.95),0_0_0_1px_rgba(255,255,255,0.08)]",
+        )}
+      >
+        <Artwork src={src} title={title} type="book" sizes={sizes} priority={priority} compactFallback={small} />
         {/* Spine crease and a soft sheen. */}
         <div aria-hidden className="absolute inset-y-0 left-0 w-[9%] bg-gradient-to-r from-black/45 via-white/20 to-transparent" />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-br from-white/15 via-transparent to-black/20" />
