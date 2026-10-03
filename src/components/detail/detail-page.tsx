@@ -236,12 +236,11 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               ended={Boolean(detail.ended)}
             />
           )}
-          {(type === "book" || type === "game") && (
+          {type === "book" && (
             <ProgressTracker
               media={card}
               progress={item?.progress && item.progress.kind !== "episode" ? item.progress : null}
               totalPages={typeof detail.metadata?.pages === "number" && detail.metadata.pages > 0 ? detail.metadata.pages : null}
-              targets={detail.timeToBeat?.entries.filter((e) => e.hours > 0) ?? []}
             />
           )}
           {detail.watch && <WhereToWatch watch={detail.watch} services={(await getUser())?.services ?? []} />}

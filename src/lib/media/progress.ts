@@ -14,7 +14,8 @@ export function progressLabel(p?: MediaProgress | null): string | null {
     case "page":
       return p.totalPages ? `Page ${p.page} of ${p.totalPages}` : `Page ${p.page}`;
     case "hours":
-      return p.targetHours ? `${formatHours(p.hours)} of ~${formatHours(p.targetHours)} h` : `${formatHours(p.hours)} h played`;
+      // Play-time tracking was retired; any saved hours stay in the data but aren't shown.
+      return null;
     case "percent":
       return `${Math.round(p.percent)}% read`;
   }
@@ -22,9 +23,9 @@ export function progressLabel(p?: MediaProgress | null): string | null {
 
 export function progressPercent(p?: MediaProgress | null): number | null {
   if (!p) return null;
+  if (p.kind === "hours") return null;
   if (p.percent != null) return p.percent;
   if (p.kind === "page" && p.totalPages) return (p.page / p.totalPages) * 100;
-  if (p.kind === "hours" && p.targetHours) return Math.min(100, (p.hours / p.targetHours) * 100);
   return null;
 }
 
