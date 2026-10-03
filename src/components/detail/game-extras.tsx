@@ -1,4 +1,4 @@
-import { ArrowUpRight, ThumbsDown, ThumbsUp } from "lucide-react";
+import { ArrowUpRight, Globe, Sofa, ThumbsDown, ThumbsUp, User, Users } from "lucide-react";
 import type { MediaDetail, SteamReviews } from "@/lib/media/types";
 import { ExpandableText } from "./expandable-text";
 import { cn } from "@/lib/utils";
@@ -140,6 +140,38 @@ export function SteamReviewsSection({ data }: { data: SteamReviews }) {
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+const MODE_ICON: { match: RegExp; icon: typeof User }[] = [
+  { match: /^single/i, icon: User },
+  { match: /^couch|^local|^lan/i, icon: Sofa },
+  { match: /co-?op|drop-in/i, icon: Users },
+  { match: /online|massively|battle/i, icon: Globe },
+];
+
+/** Single-player / co-op / multiplayer at a glance, with player counts. */
+export function HowToPlay({ modes }: { modes: NonNullable<MediaDetail["playModes"]> }) {
+  return (
+    <section aria-labelledby="how-to-play">
+      <h2 id="how-to-play" className="mb-3 text-[18px] font-bold tracking-[-0.02em]">
+        How to Play
+      </h2>
+      <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {modes.map((m) => {
+          const Icon = MODE_ICON.find((x) => x.match.test(m.label))?.icon ?? Users;
+          return (
+            <li key={m.label} className="flex items-start gap-3 rounded-2xl bg-white/[0.04] px-3.5 py-3">
+              <Icon className="mt-0.5 size-[18px] shrink-0 text-fg-2" />
+              <div className="min-w-0">
+                <p className="text-[14.5px] leading-tight font-semibold">{m.label}</p>
+                {m.detail && <p className="mt-0.5 text-[12.5px] text-fg-3">{m.detail}</p>}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

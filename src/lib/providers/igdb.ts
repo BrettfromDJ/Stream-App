@@ -328,10 +328,58 @@ async function steamReviews(appId: string): Promise<SteamReviews | null> {
   };
 }
 
-/** Store links + Steam price & reviews + time to beat. Each part fails independently. */
-async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "timeToBeat" | "steamReviews">> {
+/** People in-game on Steam right now (Steam's public stats API, refreshed every few minutes). */
+async function steamPlayersNow(appId: string): Promise<number | null> {
+  const data = await fetchJson<{ response?: { player_count?: number; result?: number } }>(
+    `https://api.steampowered.com/ISteamUserStats/GetNumberOfCurrentPlayers/v1/?appid=${appId}`,
+    { provider: "steam", revalidate: 60 * 5, timeoutMs: 5000 },
+  );
+  return data.response?.result === 1 && typeof data.response.player_count === "number" ? data.response.player_count : null;
+}
+
+interface IgdbMultiplayer {
+  campaigncoop?: boolean;
+  dropin?: boolean;
+  lancoop?: boolean;
+  offlinecoop?: boolean;
+  offlinecoopmax?: number;
+  offlinemax?: number;
+  onlinecoop?: boolean;
+  onlinecoopmax?: number;
+  onlinemax?: number;
+  splitscreen?: boolean;
+  splitscreenonline?: boolean;
+}
+
+const upTo = (n?: number) => (n && n > 1 ? `Up to ${n} players` : null);
+
+/** "How to play": single-player, couch/online co-op and multiplayer with player counts (best across platforms). */
+function playModesOf(modes: string[], mp: IgdbMultiplayer[]): NonNullable<MediaDetail["playModes"]> {
+  const max = (k: keyof IgdbMultiplayer) => Math.max(0, ...mp.map((m) => (typeof m[k] === "number" ? (m[k] as number) : 0)));
+  const any = (k: keyof IgdbMultiplayer) => mp.some((m) => m[k] === true);
+  const has = (name: RegExp) => modes.some((m) => name.test(m));
+  const out: NonNullable<MediaDetail["playModes"]> = [];
+  if (has(/single/i)) out.push({ label: "Single-player" });
+  if (any("offlinecoop") || any("splitscreen")) {
+    out.push({ label: any("splitscreen") ? "Couch co-op · Split-screen" : "Couch co-op", detail: upTo(max("offlinecoopmax")) });
+  }
+  if (any("onlinecoop")) out.push({ label: any("campaigncoop") ? "Online co-op · Campaign" : "Online co-op", detail: upTo(max("onlinecoopmax")) });
+  if (any("lancoop")) out.push({ label: "LAN co-op" });
+  if (any("dropin")) out.push({ label: "Drop-in / drop-out" });
+  const onlineMax = max("onlinemax");
+  if (onlineMax > 1 || (has(/multiplayer|battle royale|mmo/i) && !out.some((o) => o.label.startsWith("Online")))) {
+    out.push({ label: has(/mmo/i) ? "Massively multiplayer" : has(/battle royale/i) ? "Battle royale" : "Online multiplayer", detail: upTo(onlineMax) });
+  }
+  const offlineMax = max("offlinemax");
+  if (offlineMax > 1 && !out.some((o) => o.label.startsWith("Couch"))) out.push({ label: "Local multiplayer", detail: upTo(offlineMax) });
+  if (!out.length && has(/co-?op/i)) out.push({ label: "Co-op" });
+  return out;
+}
+
+/** Store links + Steam price, reviews & player count + time to beat + play modes. Each part fails independently. */
+async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "timeToBeat" | "steamReviews" | "playersNow" | "playModes">> {
   const day = 60 * 60 * 24;
-  const [websites, external, ttb] = await Promise.all([
+  const [websites, external, ttb, modes] = await Promise.all([
     safely(() => igdb<{ websites?: { url?: string }[] }[]>("games", `fields websites.url; where id = ${id};`, day), []),
     safely(() => igdb<{ url?: string }[]>("external_games", `fields url; where game = ${id}; limit 50;`, day), []),
     safely(
@@ -339,6 +387,19 @@ async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "tim
         igdb<{ hastily?: number; normally?: number; completely?: number; count?: number }[]>(
           "game_time_to_beats",
           `fields hastily, normally, completely, count; where game_id = ${id};`,
+          day,
+        ),
+      [],
+    ),
+    safely(
+      () =>
+        igdb<{ game_modes?: { name: string }[]; multiplayer_modes?: IgdbMultiplayer[] }[]>(
+          "games",
+          `fields game_modes.name, multiplayer_modes.campaigncoop, multiplayer_modes.dropin, multiplayer_modes.lancoop,
+             multiplayer_modes.offlinecoop, multiplayer_modes.offlinecoopmax, multiplayer_modes.offlinemax,
+             multiplayer_modes.onlinecoop, multiplayer_modes.onlinecoopmax, multiplayer_modes.onlinemax,
+             multiplayer_modes.splitscreen, multiplayer_modes.splitscreenonline;
+           where id = ${id};`,
           day,
         ),
       [],
@@ -353,9 +414,9 @@ async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "tim
 
   const steam = stores.find((s) => s.name === "Steam");
   const appId = steam?.url.match(/\/app\/(\d+)/)?.[1];
-  const [price, reviews] = appId
-    ? await Promise.all([safely(() => steamPrice(appId), null), safely(() => steamReviews(appId), null)])
-    : [null, null];
+  const [price, reviews, playersNow] = appId
+    ? await Promise.all([safely(() => steamPrice(appId), null), safely(() => steamReviews(appId), null), safely(() => steamPlayersNow(appId), null)])
+    : [null, null, null];
   if (steam && price) Object.assign(steam, price);
 
   const t = ttb[0];
@@ -369,6 +430,8 @@ async function gameExtras(id: string): Promise<Pick<MediaDetail, "stores" | "tim
   return {
     stores,
     steamReviews: reviews,
+    playersNow,
+    playModes: playModesOf((modes[0]?.game_modes ?? []).map((m) => m.name), modes[0]?.multiplayer_modes ?? []),
     timeToBeat: entries.length ? { entries, submissions: t?.count ?? null } : null,
   };
 }

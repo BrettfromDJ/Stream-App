@@ -13,7 +13,10 @@ import { Row, ROW_SIZES } from "@/components/media/row";
 import { LibraryPanel } from "@/components/library/library-panel";
 import { BackButton } from "./back-button";
 import { ExpandableText } from "./expandable-text";
-import { SteamReviewsSection, TimeToBeat, WhereToBuy } from "./game-extras";
+import { HowToPlay, SteamReviewsSection, TimeToBeat, WhereToBuy } from "./game-extras";
+import { ExternalScores, PlayersNow } from "./scores";
+import { Adaptations } from "./adaptations";
+import { BookVibes } from "./book-vibes";
 import { ReviewsSection } from "./reviews";
 import { WhereToWatch } from "./where-to-watch";
 import { EpisodeTracker } from "./episode-tracker";
@@ -99,6 +102,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
         ? detail.releaseDate
         : null;
 
+  const highlights = detail.readingMinutes ? [...detail.highlights, `~${formatReadTime(detail.readingMinutes)} read`] : detail.highlights;
   const hero = detail.backdropUrl ?? null;
   const hasHero = Boolean(hero || detail.artworkUrl);
   // Books get a cover-built header (no wide backdrop exists).
@@ -187,13 +191,13 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               <p className="mt-2 text-[15px] text-fg-2 md:text-[17px]">{detail.subtitle}</p>
             ) : null}
             <p className={cn("mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-fg-2 md:text-[15px]", center)}>
-              {detail.highlights.map((h, i) => (
+              {highlights.map((h, i) => (
                 <span key={h} className="inline-flex items-center gap-2">
                   {i > 0 && <span aria-hidden className="text-fg-3">·</span>}
                   {h}
                 </span>
               ))}
-              {detail.score ? (
+              {detail.score && !detail.externalScores?.length ? (
                 <span className="inline-flex items-center gap-2">
                   <span className="rounded-md bg-white/10 px-1.5 py-px text-[12px] font-semibold text-fg">
                     {detail.score.max === 100 ? `${detail.score.source} ${detail.score.value}` : `${detail.score.source} ${detail.score.value}/${detail.score.max}`}
@@ -202,6 +206,8 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               ) : null}
             </p>
             {detail.genres.length > 0 && <p className="mt-1.5 text-[14px] text-fg-3">{detail.genres.slice(0, 4).join(" · ")}</p>}
+            {(detail.externalScores?.length || detail.awards) && <ExternalScores scores={detail.externalScores ?? []} awards={detail.awards} />}
+            {detail.playersNow ? <PlayersNow count={detail.playersNow} /> : null}
             {(detail.videos?.[0] || upcoming) && (
               <div className={cn("mt-5 flex gap-2 max-md:w-full max-md:*:flex-1 md:flex-wrap", center)}>
                 {detail.videos?.[0] && <PlayTrailerButton video={detail.videos[0]} />}
@@ -226,6 +232,8 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
               <ExpandableText text={detail.description} lines={5} />
             </section>
           ) : null}
+          {detail.adaptations && <Adaptations data={detail.adaptations} />}
+          {type === "book" && <BookVibes moods={detail.moods ?? []} warnings={detail.contentWarnings ?? []} />}
 
           {type === "tv" && detail.seasons && detail.seasons.length > 0 && (
             <EpisodeTracker
@@ -244,6 +252,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
             />
           )}
           {detail.watch && <WhereToWatch watch={detail.watch} services={(await getUser())?.services ?? []} />}
+          {detail.playModes && detail.playModes.length > 0 && <HowToPlay modes={detail.playModes} />}
           {detail.timeToBeat && <TimeToBeat data={detail.timeToBeat} />}
           {detail.stores && detail.stores.length > 0 && <WhereToBuy stores={detail.stores} />}
           {detail.steamReviews && <SteamReviewsSection data={detail.steamReviews} />}
@@ -326,7 +335,7 @@ export async function DetailPage({ type, id }: { type: MediaType; id: string }) 
                   sizes={ROW_SIZES.poster}
                   showRating={false}
                   showInLibrary
-                  badge={r.externalId === id ? "This book" : typeof r.metadata?.badge === "string" ? r.metadata.badge : null}
+                  badge={r.externalId === id ? (type === "book" ? "This book" : "This film") : typeof r.metadata?.badge === "string" ? r.metadata.badge : null}
                 />
               ))}
             </Row>
@@ -374,4 +383,11 @@ function PersonLink({ href, className, children }: { href?: string | null; class
   ) : (
     <div className={className}>{children}</div>
   );
+}
+
+function formatReadTime(minutes: number) {
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h} hr ${m} min` : `${h} hr`;
 }

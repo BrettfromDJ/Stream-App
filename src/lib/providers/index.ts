@@ -9,6 +9,7 @@ import * as nyt from "./nyt";
 import * as steam from "./steam";
 import * as igdb from "./igdb";
 import * as netflix from "./netflix";
+import * as omdb from "./omdb";
 
 export { ProviderError };
 
@@ -30,17 +31,89 @@ export async function getAuthor(id: string) {
 export async function getMediaDetail(type: MediaType, id: string): Promise<MediaDetail> {
   switch (type) {
     case "movie":
+    case "tv": {
       if (!/^\d+$/.test(id)) throw new ProviderError("tmdb", "not_found");
-      return tmdb.getMovie(id);
-    case "tv":
-      if (!/^\d+$/.test(id)) throw new ProviderError("tmdb", "not_found");
-      return tmdb.getTv(id);
-    case "book":
+      const detail = type === "movie" ? await tmdb.getMovie(id) : await tmdb.getTv(id);
+      return withScreenExtras(detail);
+    }
+    case "book": {
       // Numeric IDs are Hardcover books; "OL…W" IDs are Open Library works.
-      return /^\d+$/.test(id) ? hardcover.getBook(id) : ol.getBook(id);
+      const detail = /^\d+$/.test(id) ? await hardcover.getBook(id) : await ol.getBook(id);
+      return withAdaptations(detail);
+    }
     case "game":
       return igdb.getGame(id);
   }
+}
+
+const norm = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/^(the|a|an)\s+/, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+const lastName = (n: string) => n.trim().split(/\s+/).pop()!.toLowerCase();
+
+/** Movies & TV: critic scores (OMDb) and the book it's based on. Each part is optional. */
+async function withScreenExtras(detail: MediaDetail): Promise<MediaDetail> {
+  const meta = detail.metadata ?? {};
+  const imdbId = typeof meta.imdbId === "string" ? meta.imdbId : null;
+  const [omdbResult, book] = await Promise.all([
+    imdbId && omdb.isOmdbConfigured() ? safely(() => omdb.omdbScores(imdbId), null) : Promise.resolve(null),
+    meta.basedOnBook ? safely(() => sourceBook(detail.title, (meta.sourceAuthors as string[] | undefined) ?? []), null) : Promise.resolve(null),
+  ]);
+  return {
+    ...detail,
+    externalScores: omdbResult?.scores ?? [],
+    awards: omdbResult?.awards ?? null,
+    adaptations: book ? { kind: "source", items: [book] } : null,
+  };
+}
+
+/** Finds the book a movie/show adapts: same title (or the part before a colon), by the credited author when known. */
+async function sourceBook(title: string, authors: string[]): Promise<MediaSearchResult | null> {
+  const titles = [...new Set([title, title.split(/[:–—]| - /)[0]].map((t) => t.trim()).filter(Boolean))];
+  const wanted = new Set(authors.map(lastName));
+  for (const t of titles) {
+    const results = await searchBooks(authors[0] ? `${t} ${authors[0]}` : t).catch(() => []);
+    const match = results.find((b) => {
+      if (norm(b.title) !== norm(t) || !b.artworkUrl) return false;
+      if (!wanted.size) return true;
+      const bookAuthors = (Array.isArray(b.metadata?.authors) ? (b.metadata.authors as string[]) : [b.subtitle ?? ""]).filter(Boolean);
+      return bookAuthors.some((a) => wanted.has(lastName(a)));
+    });
+    if (match) return match;
+  }
+  return null;
+}
+
+/** Books: movies and shows adapted from it (same title, tagged "based on a book", by this author). */
+async function withAdaptations(detail: MediaDetail): Promise<MediaDetail> {
+  const authors = Array.isArray(detail.metadata?.authors) ? (detail.metadata.authors as string[]) : [];
+  const items = await safely(async () => {
+    const candidates = (await tmdb.searchTmdb(detail.title, "all"))
+      .filter((r) => r.artworkUrl && norm(r.title) === norm(detail.title))
+      .slice(0, 4);
+    const checks = await Promise.all(
+      candidates.map((c) => tmdb.adaptsBook(c.type as "movie" | "tv", c.externalId, authors).catch(() => false)),
+    );
+    return candidates.filter((_, i) => checks[i]);
+  }, []);
+  const pages = typeof detail.metadata?.pages === "number" ? detail.metadata.pages : null;
+  return {
+    ...detail,
+    readingMinutes: readingMinutes(pages),
+    ...(items.length ? { adaptations: { kind: "screen" as const, items } } : {}),
+  };
+}
+
+/** ~250 words a page at ~250 words a minute, rounded to a friendly number. */
+function readingMinutes(pages: number | null) {
+  if (!pages || pages < 20) return null;
+  const minutes = pages * 1.1;
+  return minutes < 90 ? Math.round(minutes / 5) * 5 : Math.round(minutes / 15) * 15;
 }
 
 export type SearchFilter = MediaType | "all";

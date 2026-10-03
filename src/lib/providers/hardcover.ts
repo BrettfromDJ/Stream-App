@@ -99,6 +99,15 @@ function authorsOf(contributors?: HcContributor[] | null) {
   return (primary.length ? primary : all).map((c) => c.author?.name).filter((n): n is string => Boolean(n)).slice(0, 3);
 }
 
+/** Reader-voted tags in a category ("Mood", "Content Warning"), most-voted first as Hardcover stores them. */
+function tagsOf(tags: HcBook["cached_tags"] | undefined, category: string, limit: number) {
+  const seen = new Set<string>();
+  return (tags?.[category] ?? [])
+    .map((t) => t.tag?.trim())
+    .filter((t): t is string => Boolean(t) && !seen.has(t!.toLowerCase()) && Boolean(seen.add(t!.toLowerCase())))
+    .slice(0, limit);
+}
+
 function genresOf(tags?: HcBook["cached_tags"]) {
   return (tags?.Genre ?? [])
     .map((t) => t.tag)
@@ -379,6 +388,8 @@ export async function getBook(id: string): Promise<MediaDetail> {
     score:
       b.rating && (b.ratings_count ?? 0) >= 5 ? { value: Math.round(b.rating * 10) / 10, max: 5, source: "Hardcover" } : null,
     reviews: withOverall(await reviews, b),
+    moods: tagsOf(b.cached_tags, "Mood", 6),
+    contentWarnings: tagsOf(b.cached_tags, "Content Warning", 12),
     metadata: { authors, pages, isbn, genres },
   };
 }

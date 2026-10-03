@@ -67,6 +67,21 @@ export interface MediaDetail extends MediaSearchResult {
   steamReviews?: SteamReviews | null;
   /** Movies & TV (TMDB users) and books (Hardcover readers): written reviews. */
   reviews?: CommunityReviews | null;
+  /** Movies & TV: Rotten Tomatoes / IMDb / Metacritic (via OMDb). */
+  externalScores?: ExternalScore[];
+  /** Movies & TV: e.g. "Won 6 Oscars. 50 wins & 80 nominations total." */
+  awards?: string | null;
+  /** Movies ↔ books: "Based on the book" or "On screen" links. */
+  adaptations?: { kind: "source" | "screen"; items: MediaSearchResult[] } | null;
+  /** Books: reader-tagged moods and content warnings (Hardcover). */
+  moods?: string[];
+  contentWarnings?: string[];
+  /** Books: rough reading time at an average pace. */
+  readingMinutes?: number | null;
+  /** Games: people playing on Steam right now. */
+  playersNow?: number | null;
+  /** Games: single-player / co-op / multiplayer details. */
+  playModes?: { label: string; detail?: string | null }[];
   /** TV: season list (episodes load per season). */
   seasons?: SeasonSummary[];
   /** TV: whether the show has finished airing. */
@@ -166,6 +181,17 @@ export interface SteamReview {
   /** ISO date */
   date: string;
   helpful: number;
+}
+
+export interface ExternalScore {
+  source: "Rotten Tomatoes" | "IMDb" | "Metacritic";
+  /** As the source displays it: "92%", "8.1", "79". */
+  value: string;
+  /** 0–100, for color. */
+  percent: number;
+  url?: string | null;
+  /** e.g. "1.2M votes" */
+  note?: string | null;
 }
 
 export interface UserReview {

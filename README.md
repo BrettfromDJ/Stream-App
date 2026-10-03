@@ -31,6 +31,7 @@ simply hidden.
 | `IGDB_CLIENT_SECRET` | **server only** | same app → "New Secret" |
 | `HARDCOVER_API_TOKEN` | **server only**, optional | hardcover.app/account/api (books fall back to Open Library without it) |
 | `NYT_API_KEY` | **server only**, optional | developer.nytimes.com (Books API) — bestseller charts on the Books tab |
+| `OMDB_API_KEY` | **server only**, optional | omdbapi.com/apikey.aspx (free) — Rotten Tomatoes, IMDb & Metacritic scores and awards on movie/TV pages |
 | `OPENLIBRARY_CONTACT` | server only, optional | your email/URL for Open Library's User-Agent |
 | `NEXT_PUBLIC_SITE_URL` | server, optional | your production URL, for auth email links |
 

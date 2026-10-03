@@ -50,7 +50,7 @@ interface TmdbDetailCommon {
   status?: string;
   tagline?: string;
   original_language?: string;
-  credits?: { cast?: TmdbCast[]; crew?: { id: number; job: string; name: string }[] };
+  credits?: { cast?: TmdbCast[]; crew?: { id: number; job: string; name: string; department?: string }[] };
   recommendations?: TmdbPaged<TmdbListItem>;
   similar?: TmdbPaged<TmdbListItem>;
   videos?: { results: TmdbVideo[] };
@@ -148,7 +148,20 @@ interface TmdbMovieDetail extends TmdbDetailCommon {
   budget?: number;
   revenue?: number;
   release_dates?: { results: { iso_3166_1: string; release_dates: { certification: string }[] }[] };
+  imdb_id?: string | null;
+  belongs_to_collection?: { id: number; name: string } | null;
+  keywords?: { keywords?: TmdbKeyword[] };
 }
+
+interface TmdbKeyword {
+  id: number;
+  name: string;
+}
+
+// TMDB tags adaptations with keywords like "based on novel or book", "based on young adult novel".
+const BOOK_SOURCE = /^based on (?:a |an )?(?:[\w'-]+ )*?(novel|book|novella|short story|memoir|autobiography)\b/i;
+// Crew credits for the original author.
+const AUTHOR_JOBS = new Set(["Novel", "Book", "Author", "Short Story", "Characters"]);
 
 interface TmdbEpisodeRef {
   air_date?: string | null;
@@ -171,6 +184,8 @@ interface TmdbTvDetail extends TmdbDetailCommon {
   networks?: { name: string }[];
   created_by?: { id: number; name: string }[];
   next_episode_to_air?: TmdbEpisodeRef | null;
+  external_ids?: { imdb_id?: string | null };
+  keywords?: { results?: TmdbKeyword[] };
   last_episode_to_air?: TmdbEpisodeRef | null;
   seasons?: { season_number: number; name?: string; episode_count?: number; air_date?: string | null; poster_path?: string | null }[];
   content_ratings?: { results: { iso_3166_1: string; rating: string }[] };
@@ -301,10 +316,59 @@ function facts(pairs: [string, string | number | null | undefined | false][]): M
     .map(([label, value]) => ({ label, value: String(value) }));
 }
 
+/** Whether a title is adapted from a book, and the book's author(s) when TMDB credits them. */
+function sourceOf(keywords: TmdbKeyword[] | undefined, crew: { job: string; name: string }[] | undefined) {
+  const authors = [...new Set((crew ?? []).filter((c) => AUTHOR_JOBS.has(c.job)).map((c) => c.name))].slice(0, 3);
+  const basedOnBook = (keywords ?? []).some((k) => BOOK_SOURCE.test(k.name)) || (crew ?? []).some((c) => c.job === "Novel" || c.job === "Book");
+  return basedOnBook ? { basedOnBook: true, sourceAuthors: authors } : {};
+}
+
+/** Franchise first (in release order), then recommendations. */
+async function movieRows(d: TmdbMovieDetail): Promise<NonNullable<MediaDetail["relatedRows"]> | undefined> {
+  const c = d.belongs_to_collection;
+  if (!c) return undefined;
+  try {
+    const col = await tmdb<{ name: string; parts?: TmdbListItem[] }>(`/collection/${c.id}`, {}, 60 * 60 * 24);
+    const parts = normalizeList(col.parts, "movie")
+      .filter((p) => p.artworkUrl)
+      .sort((a, b) => (a.releaseDate || "9999").localeCompare(b.releaseDate || "9999"))
+      .map((p, i) => ({ ...p, metadata: { ...p.metadata, badge: `Part ${i + 1}` } }));
+    if (parts.length < 2) return undefined;
+    return [
+      { title: col.name, items: parts },
+      { title: "You Might Also Like", items: normalizeList(d.recommendations?.results, "movie").slice(0, 18) },
+    ];
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * For a book page: does this movie/show adapt a book by one of `authors`?
+ * Checks TMDB's "based on…" keywords and the original-author crew credit.
+ */
+export async function adaptsBook(kind: TmdbKind, id: string, authors: string[]): Promise<boolean> {
+  const [kw, credits] = await Promise.all([
+    tmdb<{ keywords?: TmdbKeyword[]; results?: TmdbKeyword[] }>(`/${kind}/${id}/keywords`, {}, 60 * 60 * 24 * 7),
+    tmdb<{ crew?: { job?: string; name: string; jobs?: { job: string }[] }[] }>(
+      kind === "movie" ? `/movie/${id}/credits` : `/tv/${id}/aggregate_credits`,
+      {},
+      60 * 60 * 24 * 7,
+    ),
+  ]);
+  const crew = (credits.crew ?? []).flatMap((c) => (c.jobs ? c.jobs.map((j) => ({ job: j.job, name: c.name })) : [{ job: c.job ?? "", name: c.name }]));
+  const source = sourceOf(kw.keywords ?? kw.results, crew);
+  if (!source.basedOnBook) return false;
+  const last = (n: string) => n.trim().split(/\s+/).pop()!.toLowerCase();
+  const wanted = new Set(authors.map(last));
+  // With an author credit, require it to match; keyword-only adaptations need the title match done by the caller.
+  return source.sourceAuthors.length ? source.sourceAuthors.some((a) => wanted.has(last(a))) : true;
+}
+
 export async function getMovie(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbMovieDetail>(
     `/movie/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,release_dates,videos,watch/providers,reviews", include_video_language: "en,null" },
+    { append_to_response: "credits,recommendations,release_dates,videos,watch/providers,reviews,keywords", include_video_language: "en,null" },
     60 * 60 * 24,
   );
   const base = normalize({ ...d, id: d.id }, "movie");
@@ -338,15 +402,22 @@ export async function getMovie(id: string): Promise<MediaDetail> {
     watch: watchOf(d),
     reviews: reviewsOf(d, "movie"),
     related: normalizeList(d.recommendations?.results, "movie").slice(0, 18),
+    relatedRows: await movieRows(d),
     score: score(d),
-    metadata: { genres: d.genres?.map((g) => g.name) ?? [], runtime: d.runtime ?? null, director },
+    metadata: {
+      genres: d.genres?.map((g) => g.name) ?? [],
+      runtime: d.runtime ?? null,
+      director,
+      imdbId: d.imdb_id ?? null,
+      ...sourceOf(d.keywords?.keywords, d.credits?.crew),
+    },
   };
 }
 
 export async function getTv(id: string): Promise<MediaDetail> {
   const d = await tmdb<TmdbTvDetail>(
     `/tv/${encodeURIComponent(id)}`,
-    { append_to_response: "credits,recommendations,content_ratings,videos,watch/providers,reviews", include_video_language: "en,null" },
+    { append_to_response: "credits,recommendations,content_ratings,videos,watch/providers,reviews,keywords,external_ids", include_video_language: "en,null" },
     60 * 60 * 12,
   );
   const base = normalize({ ...d, id: d.id }, "tv");
@@ -395,6 +466,8 @@ export async function getTv(id: string): Promise<MediaDetail> {
       seasons,
       episodes: d.number_of_episodes ?? null,
       network,
+      imdbId: d.external_ids?.imdb_id ?? null,
+      ...sourceOf(d.keywords?.results, d.credits?.crew),
     },
   };
 }
