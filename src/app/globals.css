@@ -28,7 +28,11 @@
   --animate-fade-in: fade-in 0.35s var(--ease-out-soft) both;
 
   --animate-marquee: marquee 120s linear infinite;
+  --animate-glow-spin: glow-spin 6s linear infinite;
 
+  @keyframes glow-spin {
+    to { transform: rotate(360deg); }
+  }
   @keyframes marquee {
     from { transform: translate3d(0, 0, 0); }
     to { transform: translate3d(-50%, 0, 0); }

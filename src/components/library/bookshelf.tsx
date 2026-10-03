@@ -18,9 +18,9 @@ const SIZES = "(min-width: 1280px) 12vw, (min-width: 1024px) 14vw, (min-width: 7
  * Each book carries its own stretch of shelf (overlapping into the gap), so rows read as one
  * continuous ledge at any column count.
  */
-export function Bookshelf({ items }: { items: LibraryItem[] }) {
+export function Bookshelf({ items, className }: { items: LibraryItem[]; className?: string }) {
   return (
-    <div className="gutter mt-6 grid grid-cols-3 gap-x-5 gap-y-9 sm:grid-cols-4 md:grid-cols-5 md:gap-x-8 lg:grid-cols-6 xl:grid-cols-7">
+    <div className={cn("gutter mt-6 grid grid-cols-3 gap-x-5 gap-y-9 sm:grid-cols-4 md:grid-cols-5 md:gap-x-8 lg:grid-cols-6 xl:grid-cols-7", className)}>
       {items.map((item, i) => (
         <ShelfBook key={item.id} item={item} priority={i < 6} />
       ))}
@@ -28,7 +28,7 @@ export function Bookshelf({ items }: { items: LibraryItem[] }) {
   );
 }
 
-function ShelfBook({ item, priority }: { item: LibraryItem; priority: boolean }) {
+export function ShelfBook({ item, priority }: { item: LibraryItem; priority: boolean }) {
   const quick = useQuickActions();
   const card = cardFromItem(item);
   const longPress = useLongPress(quick ? () => quick.open(card) : undefined);
@@ -72,5 +72,18 @@ function ShelfBook({ item, priority }: { item: LibraryItem; priority: boolean })
         )}
       </div>
     </Link>
+  );
+}
+
+/** One shelf that scrolls sideways (for shelf sections on the Library page). */
+export function BookshelfRow({ items }: { items: LibraryItem[] }) {
+  return (
+    <div className="no-scrollbar gutter snap-gutter flex snap-x gap-5 overflow-x-auto pb-1 md:gap-8">
+      {items.map((item, i) => (
+        <div key={item.id} className="w-[27vw] shrink-0 snap-start sm:w-[20vw] md:w-[140px] lg:w-[150px]">
+          <ShelfBook item={item} priority={i < 4} />
+        </div>
+      ))}
+    </div>
   );
 }
